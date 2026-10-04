@@ -1,7 +1,9 @@
 from sqlalchemy.orm import Session
 from . import models, workout, nutrition
+from .ai.factory import get_llm_provider
+from .ai.providers.base import BaseLLMProvider
 from datetime import date
-import httpx
+from typing import Optional, List, Any
 
 def build_system_prompt(user: models.User, db: Session) -> str:
     # 1. Get recommendation
@@ -35,27 +37,20 @@ def build_system_prompt(user: models.User, db: Session) -> str:
     )
     return prompt
 
-async def chat_with_coach(user_message: str, conversation_history: list, system_prompt: str) -> str:
-    url = "http://localhost:11434/api/chat"
-    
-    # Prepare messages: System prompt + History + New message
+async def chat_with_coach(
+    user_message: str, 
+    conversation_history: List[Any], 
+    system_prompt: str,
+    provider: Optional[BaseLLMProvider] = None
+) -> str:
+    if provider is None:
+        provider = get_llm_provider()
+        
     messages = [{"role": "system", "content": system_prompt}]
     for msg in conversation_history:
-        messages.append({"role": msg.role, "content": msg.content})
+        role = getattr(msg, "role", None) or (msg.get("role") if isinstance(msg, dict) else "user")
+        content = getattr(msg, "content", None) or (msg.get("content") if isinstance(msg, dict) else str(msg))
+        messages.append({"role": role, "content": content})
     messages.append({"role": "user", "content": user_message})
     
-    payload = {
-        "model": "llama3:latest",
-        "messages": messages,
-        "stream": False
-    }
-    
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, json=payload)
-            response.raise_for_status()
-            return response.json()['message']['content']
-    except httpx.TimeoutException:
-        return "The coach is taking too long to respond, please try again."
-    except Exception as e:
-        return f"Error connecting to coach: {e}"
+    return await provider.generate_response(messages)
