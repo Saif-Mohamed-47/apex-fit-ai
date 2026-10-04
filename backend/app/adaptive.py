@@ -1,7 +1,9 @@
+from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from . import models
 from .data.exercises import EXERCISES
+
 # ISSUE-001: Adaptive Overload Increment Tuning
 # Fixed +2.5kg increment for all exercises causes excessive jumps (+25%+) on small isolation movements
 # (e.g. Lateral Raises, Bicep Curls). Isolation lifts use micro-increments (1.0kg), while compound lifts use 2.5kg.
