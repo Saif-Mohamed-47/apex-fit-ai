@@ -104,3 +104,31 @@ def test_adaptive_bodyweight_exercise(db_session):
     assert rec["has_history"] is True
     assert rec["recommended_weight_kg"] == 0
     assert "reps" in rec["reasoning"].lower()
+
+def test_adaptive_out_of_order_timestamps(db_session):
+    # Insert Set 3 first, then Set 1, then Set 2 (out of chronological/set order)
+    # Set 3 is the final set of the session with weight 85.0kg
+    t1 = datetime(2026, 10, 5, 10, 0, 0)
+    t2 = datetime(2026, 10, 5, 10, 5, 0)
+    t3 = datetime(2026, 10, 5, 10, 10, 0)
+
+    # Insert out of order
+    db_session.add(models.WorkoutLog(
+        user_id=1, exercise_name="Bench Press", logged_at=t3,
+        actual_weight_kg=85.0, actual_reps=8, set_number=3, difficulty_rating="moderate"
+    ))
+    db_session.add(models.WorkoutLog(
+        user_id=1, exercise_name="Bench Press", logged_at=t1,
+        actual_weight_kg=80.0, actual_reps=8, set_number=1, difficulty_rating="moderate"
+    ))
+    db_session.add(models.WorkoutLog(
+        user_id=1, exercise_name="Bench Press", logged_at=t2,
+        actual_weight_kg=80.0, actual_reps=8, set_number=2, difficulty_rating="moderate"
+    ))
+    db_session.commit()
+
+    rec = adaptive.get_adaptive_recommendation(user_id=1, exercise_name="Bench Press", db=db_session)
+    assert rec["has_history"] is True
+    # Order by logged_at/set_number must pick Set 3 (85.0kg) as the last set, recommending 85.0 + 2.5 = 87.5kg
+    assert rec["recommended_weight_kg"] == 87.5
+

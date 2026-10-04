@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 def calculate_tdee(weight_kg, height_cm, age, gender, activity_level):
     # Mifflin-St Jeor
     if gender.lower() == 'male':
@@ -36,19 +40,24 @@ def calculate_macros(weight_kg, age, height_cm, gender, activity_level, goal):
         carbs_pct = 0.60
         fat_pct = 0.40
     
-    # Calculate protein calories
+    # Calculate protein calories and minimum fat floor (20% of target calories)
     protein_calories = protein_g * 4
-    remaining_calories = target_calories - protein_calories
+    min_fat_calories = 0.20 * target_calories
     
-    if remaining_calories < 0:
-        # Log a warning conceptually (print for now)
-        print(f"Warning: Protein calories exceed target calories for goal {goal}")
-        carbs_g = 0
-        fat_g = 0
+    if (target_calories - protein_calories) < min_fat_calories:
+        logger.warning(
+            "Protein target (%sg = %s kcal) leaves less than 20%% for essential fats in %s kcal target. Adjusting protein.",
+            round(protein_g, 1), round(protein_calories, 1), target_calories
+        )
+        fat_calories = min_fat_calories
+        fat_g = fat_calories / 9.0
+        protein_calories = target_calories - fat_calories
+        protein_g = protein_calories / 4.0
+        carbs_g = 0.0
     else:
-        # Calculate carbs and fat from remaining calories
-        carbs_g = (remaining_calories * carbs_pct) / 4
-        fat_g = (remaining_calories * fat_pct) / 9
+        remaining_calories = target_calories - protein_calories
+        carbs_g = (remaining_calories * carbs_pct) / 4.0
+        fat_g = (remaining_calories * fat_pct) / 9.0
     
     return {
         "protein_g": round(protein_g),

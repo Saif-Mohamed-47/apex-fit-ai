@@ -1,5 +1,15 @@
+import pytest
 import requests
 
+def is_ollama_available():
+    try:
+        res = requests.get("http://localhost:11434/api/tags", timeout=1.0)
+        return res.status_code == 200
+    except Exception:
+        return False
+
+@pytest.mark.integration
+@pytest.mark.skipif(not is_ollama_available(), reason="Ollama service is not reachable at http://localhost:11434")
 def test_ollama():
     url = "http://localhost:11434/api/generate"
     payload = {
@@ -8,13 +18,13 @@ def test_ollama():
         "stream": False
     }
     
-    try:
-        response = requests.post(url, json=payload)
-        response.raise_for_status()
-        print("Response from Ollama:")
-        print(response.json()['response'])
-    except Exception as e:
-        print(f"Error connecting to Ollama: {e}")
+    response = requests.post(url, json=payload, timeout=10.0)
+    response.raise_for_status()
+    assert "response" in response.json()
 
 if __name__ == "__main__":
-    test_ollama()
+    if is_ollama_available():
+        test_ollama()
+        print("Ollama test passed!")
+    else:
+        print("Ollama is not running.")

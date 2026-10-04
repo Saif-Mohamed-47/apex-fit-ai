@@ -54,3 +54,15 @@ def test_calculate_macros_calorie_floor():
     # TDEE ~1000, TDEE - 500 would be 500 kcal, but floor is 1200 kcal
     macros = calculate_macros(weight_kg=40, age=60, height_cm=140, gender="female", activity_level="sedentary", goal="lose_fat")
     assert macros["target_calories"] >= 1200
+
+def test_calculate_macros_protein_exceeds_target_enforces_fat_floor():
+    # User parameters that result in 1200 kcal floor target, but high weight (130kg)
+    # Default protein 2 * 130 = 260g (1040 kcal), leaving only 160 kcal (< 20% / 240 kcal for fat).
+    # Algorithm must enforce 20% minimum fat intake (240 kcal = 27g fat) and reduce protein to fit.
+    macros = calculate_macros(weight_kg=130, age=90, height_cm=100, gender="female", activity_level="sedentary", goal="lose_fat")
+    assert macros["target_calories"] == 1200
+    assert macros["fat_g"] == round((1200 * 0.20) / 9.0)  # 27g fat (240 kcal)
+    assert macros["carbs_g"] == 0
+    assert macros["protein_g"] == round((1200 - 240) / 4.0)  # 240g protein (960 kcal)
+
+

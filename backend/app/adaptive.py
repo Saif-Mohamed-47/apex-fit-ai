@@ -55,8 +55,10 @@ def get_adaptive_recommendation(user_id: int, exercise_name: str, db: Session) -
         .filter(models.WorkoutLog.user_id == user_id)
         .filter(models.WorkoutLog.exercise_name == exercise_name)
         .filter(func.date(models.WorkoutLog.logged_at) == latest_date)
+        .order_by(models.WorkoutLog.logged_at.asc(), models.WorkoutLog.set_number.asc())
         .all()
     )
+
 
     # Use the weight from the last set of the session
     latest_weight = logs[-1].actual_weight_kg
