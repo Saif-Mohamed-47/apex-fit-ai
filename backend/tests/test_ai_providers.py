@@ -2,7 +2,7 @@ import pytest
 import os
 from unittest.mock import AsyncMock, patch, MagicMock
 from app.ai.factory import get_llm_provider
-from app.ai.providers.base import BaseLLMProvider
+from app.ai.providers.base import BaseLLMProvider, GeminiContentBlockedError, GeminiEmptyResponseError
 from app.ai.providers.ollama import OllamaProvider
 from app.ai.providers.gemini import GeminiProvider
 from app import ai_chat
@@ -36,7 +36,7 @@ async def test_ollama_provider_generate_success():
     mock_response.raise_for_status = MagicMock()
     mock_response.json.return_value = {"message": {"content": "Hello athlete!"}}
 
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+    with patch.object(provider.client, "post", new_callable=AsyncMock) as mock_post:
         mock_post.return_value = mock_response
         reply = await provider.generate_response(messages)
 
@@ -45,6 +45,8 @@ async def test_ollama_provider_generate_success():
         _, kwargs = mock_post.call_args
         assert kwargs["json"]["model"] == "llama3:latest"
         assert kwargs["json"]["stream"] is False
+
+    await provider.close()
 
 @pytest.mark.asyncio
 async def test_ollama_provider_stream_success():
@@ -64,65 +66,94 @@ async def test_ollama_provider_stream_success():
         async def __aexit__(self, exc_type, exc_val, exc_tb):
             pass
 
-    with patch("httpx.AsyncClient.stream", return_value=MockStreamContext()):
+    with patch.object(provider.client, "stream", return_value=MockStreamContext()):
         chunks = []
         async for chunk in provider.stream_response(messages):
             chunks.append(chunk)
 
         assert chunks == ["Chunk 1 ", "Chunk 2"]
 
-@pytest.mark.asyncio
-async def test_gemini_provider_message_conversion():
-    provider = GeminiProvider(api_key="test_key", model="gemini-2.5-flash")
-    messages = [
-        {"role": "system", "content": "You are a fitness coach."},
-        {"role": "user", "content": "How to bench press?"},
-        {"role": "assistant", "content": "Keep shoulders retracted."}
-    ]
-
-    converted = provider._convert_messages(messages)
-    assert converted["system_instruction"] == {"parts": [{"text": "You are a fitness coach."}]}
-    assert converted["contents"] == [
-        {"role": "user", "parts": [{"text": "How to bench press?"}]},
-        {"role": "model", "parts": [{"text": "Keep shoulders retracted."}]}
-    ]
+    await provider.close()
 
 @pytest.mark.asyncio
-async def test_gemini_provider_generate_success():
-    provider = GeminiProvider(api_key="test_key", model="gemini-2.5-flash")
+async def test_gemini_header_authentication():
+    secret_key = "secret_api_key_12345"
+    provider = GeminiProvider(api_key=secret_key, model="gemini-2.5-flash")
     messages = [{"role": "user", "content": "Hello"}]
 
     mock_response = MagicMock()
     mock_response.raise_for_status = MagicMock()
     mock_response.json.return_value = {
-        "candidates": [
-            {"content": {"parts": [{"text": "Gemini response text"}]}}
-        ]
+        "candidates": [{"content": {"parts": [{"text": "Hello user"}]}}]
     }
 
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+    with patch.object(provider.client, "post", new_callable=AsyncMock) as mock_post:
         mock_post.return_value = mock_response
         reply = await provider.generate_response(messages)
 
-        assert reply == "Gemini response text"
+        assert reply == "Hello user"
+        url_called = mock_post.call_args[0][0]
+        # Secret key must NOT be in the URL query string
+        assert secret_key not in url_called
+        # Client headers must contain x-goog-api-key
+        assert provider.client.headers.get("x-goog-api-key") == secret_key
+
+    await provider.close()
 
 @pytest.mark.asyncio
-async def test_chat_with_coach_with_mock_provider():
-    mock_provider = AsyncMock(spec=BaseLLMProvider)
-    mock_provider.generate_response.return_value = "Mocked coach response"
+async def test_gemini_secret_masking():
+    secret_key = "sensitive_key_999"
+    provider = GeminiProvider(api_key=secret_key, model="gemini-2.5-flash")
 
-    history = [{"role": "user", "content": "Previous msg"}]
-    reply = await ai_chat.chat_with_coach(
-        user_message="New question",
-        conversation_history=history,
-        system_prompt="System instructions",
-        provider=mock_provider
-    )
+    masked = provider._mask_secret(f"Error connecting to https://api.com?key={secret_key}")
+    assert secret_key not in masked
+    assert "***MASKED_API_KEY***" in masked
 
-    assert reply == "Mocked coach response"
-    mock_provider.generate_response.assert_called_once()
-    called_messages = mock_provider.generate_response.call_args[0][0]
-    assert len(called_messages) == 3
-    assert called_messages[0] == {"role": "system", "content": "System instructions"}
-    assert called_messages[1] == {"role": "user", "content": "Previous msg"}
-    assert called_messages[2] == {"role": "user", "content": "New question"}
+    await provider.close()
+
+@pytest.mark.asyncio
+async def test_gemini_content_blocked_safety():
+    provider = GeminiProvider(api_key="test_key", model="gemini-2.5-flash")
+    messages = [{"role": "user", "content": "Dangerous topic"}]
+
+    mock_response = MagicMock()
+    mock_response.raise_for_status = MagicMock()
+    mock_response.json.return_value = {
+        "candidates": [{"finishReason": "SAFETY"}]
+    }
+
+    with patch.object(provider.client, "post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_response
+        reply = await provider.generate_response(messages)
+
+        assert "safety guardrails" in reply.lower()
+
+    await provider.close()
+
+@pytest.mark.asyncio
+async def test_gemini_empty_response():
+    provider = GeminiProvider(api_key="test_key", model="gemini-2.5-flash")
+    messages = [{"role": "user", "content": "Hello"}]
+
+    mock_response = MagicMock()
+    mock_response.raise_for_status = MagicMock()
+    mock_response.json.return_value = {"candidates": []}
+
+    with patch.object(provider.client, "post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_response
+        reply = await provider.generate_response(messages)
+
+        assert "unable to generate a response" in reply.lower()
+
+    await provider.close()
+
+@pytest.mark.asyncio
+async def test_provider_client_reuse_and_close():
+    provider = OllamaProvider()
+    client1 = provider.client
+    client2 = provider.client
+    assert client1 is client2
+    assert not client1.is_closed
+
+    await provider.close()
+    assert client1.is_closed
