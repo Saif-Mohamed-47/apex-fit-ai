@@ -2,9 +2,26 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from . import models
 from .data.exercises import EXERCISES
-from typing import Dict, Any, Optional
+# ISSUE-001: Adaptive Overload Increment Tuning
+# Fixed +2.5kg increment for all exercises causes excessive jumps (+25%+) on small isolation movements
+# (e.g. Lateral Raises, Bicep Curls). Isolation lifts use micro-increments (1.0kg), while compound lifts use 2.5kg.
+ISOLATION_EXERCISES = {
+    "Lateral Raises",
+    "Bicep Curls",
+    "Triceps Pushdowns",
+    "Calf Raises",
+    "Rear Delt Fly",
+    "Hammer Curls",
+}
+
+def get_weight_increment(exercise_name: str, current_weight_kg: float) -> float:
+    """Returns progressive overload weight increment in kg based on exercise type."""
+    if exercise_name in ISOLATION_EXERCISES:
+        return 1.0
+    return 2.5
 
 def get_adaptive_recommendation(user_id: int, exercise_name: str, db: Session) -> Dict[str, Any]:
+
     # 1. Find the most recent session date
     latest_log = (
         db.query(models.WorkoutLog)
@@ -64,10 +81,11 @@ def get_adaptive_recommendation(user_id: int, exercise_name: str, db: Session) -
     
     # Otherwise easy/moderate
     if latest_weight > 0:
-        new_weight = latest_weight + 2.5
+        increment = get_weight_increment(exercise_name, latest_weight)
+        new_weight = latest_weight + increment
         return {
             "recommended_weight_kg": round(new_weight, 2),
-            "reasoning": "You crushed the last session! Increasing weight by 2.5kg.",
+            "reasoning": f"You crushed the last session! Increasing weight by {increment}kg.",
             "has_history": True
         }
     else:
@@ -76,3 +94,4 @@ def get_adaptive_recommendation(user_id: int, exercise_name: str, db: Session) -
             "reasoning": "Bodyweight exercise. Focus on adding more reps this session.",
             "has_history": True
         }
+
