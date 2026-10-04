@@ -157,7 +157,11 @@ async def chat_with_coach_endpoint(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    system_prompt = ai_chat.build_system_prompt(current_user, db)
-    reply = await ai_chat.chat_with_coach(request.message, request.history, system_prompt)
-    
+    reply = await ai_chat.chat_with_coach(
+        user_message=request.message, 
+        conversation_history=request.history, 
+        user=current_user, 
+        db=db
+    )
     return {"reply": reply}
+
