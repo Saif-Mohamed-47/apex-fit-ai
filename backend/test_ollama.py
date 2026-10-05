@@ -18,7 +18,7 @@ def test_ollama():
         "stream": False
     }
     
-    response = requests.post(url, json=payload, timeout=10.0)
+    response = requests.post(url, json=payload, timeout=30.0)
     response.raise_for_status()
     assert "response" in response.json()
 

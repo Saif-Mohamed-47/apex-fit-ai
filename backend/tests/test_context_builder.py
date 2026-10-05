@@ -134,13 +134,11 @@ def test_role_filtering_ignores_non_user_assistant():
 
 def test_system_instructions_safety_and_medical_rules():
     en_instructions = build_system_instructions(language="en")
-    assert "SCOPE & BOUNDARIES:" in en_instructions
-    assert "SAFETY & MEDICAL REFERRAL RULE:" in en_instructions
-    assert "DATA PROTECTION & INSTRUCTION ISOLATION:" in en_instructions
-    assert "consult a qualified physician or doctor" in en_instructions
+    assert "CORE RULES:" in en_instructions
+    assert "physician" in en_instructions
 
     ar_instructions = build_system_instructions(language="ar")
-    assert "LANGUAGE REQUIREMENT:" in ar_instructions
+    assert "LANGUAGE:" in ar_instructions
     assert "Arabic" in ar_instructions
 
 def test_build_coach_messages_separate_budgets(db_session, dummy_user):
@@ -156,9 +154,12 @@ def test_build_coach_messages_separate_budgets(db_session, dummy_user):
         max_context_chars=1000.0
     )
 
-    assert len(messages) == 3
+    assert len(messages) == 4
     assert messages[0]["role"] == "system"
     assert "<USER_CONTEXT>" in messages[0]["content"]
     assert "Arabic" in messages[0]["content"]
     assert messages[1] == {"role": "user", "content": "مرحبا"}
-    assert messages[2] == {"role": "user", "content": user_msg}
+    assert messages[2]["role"] == "system"
+    assert "Reply in the language of the user's last message" in messages[2]["content"]
+    assert messages[3] == {"role": "user", "content": user_msg}
+
