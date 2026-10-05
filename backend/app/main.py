@@ -151,6 +151,8 @@ def cleanup_workout_logs(
     db.commit()
     return None
 
+from fastapi.responses import StreamingResponse
+
 @app.post("/chat/")
 async def chat_with_coach_endpoint(
     request: schemas.ChatRequest,
@@ -164,4 +166,19 @@ async def chat_with_coach_endpoint(
         db=db
     )
     return {"reply": reply}
+
+@app.post("/chat/stream")
+async def chat_stream_endpoint(
+    request: schemas.ChatRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    generator = ai_chat.stream_chat_with_coach(
+        user_message=request.message,
+        conversation_history=request.history,
+        user=current_user,
+        db=db
+    )
+    return StreamingResponse(generator, media_type="text/event-stream")
+
 

@@ -9,6 +9,13 @@ class DifficultyRating(str, Enum):
     HARD = "hard"
     FAILED = "failed"
 
+class GoalEnum(str, Enum):
+    LOSE_FAT = "lose_fat"
+    GAIN_MUSCLE = "gain_muscle"
+    MAINTAIN = "maintain"
+    FAT_LOSS = "fat_loss"
+    MAINTENANCE = "maintenance"
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -19,7 +26,7 @@ class UserBase(BaseModel):
     weight_kg: float
     height_cm: float
     gender: str
-    goal: str
+    goal: GoalEnum
     activity_level: str
     training_experience_months: int
     days_per_week: int

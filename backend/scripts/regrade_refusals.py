@@ -1,6 +1,7 @@
 import sys
 import json
 import re
+from typing import Tuple
 
 if sys.platform == "win32":
     try:
