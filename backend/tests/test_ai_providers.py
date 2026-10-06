@@ -124,9 +124,8 @@ async def test_gemini_content_blocked_safety():
 
     with patch.object(provider.client, "post", new_callable=AsyncMock) as mock_post:
         mock_post.return_value = mock_response
-        reply = await provider.generate_response(messages)
-
-        assert "safety guardrails" in reply.lower()
+        with pytest.raises(GeminiContentBlockedError):
+            await provider.generate_response(messages)
 
     await provider.close()
 
@@ -141,9 +140,8 @@ async def test_gemini_empty_response():
 
     with patch.object(provider.client, "post", new_callable=AsyncMock) as mock_post:
         mock_post.return_value = mock_response
-        reply = await provider.generate_response(messages)
-
-        assert "unable to generate a response" in reply.lower()
+        with pytest.raises(GeminiEmptyResponseError):
+            await provider.generate_response(messages)
 
     await provider.close()
 
