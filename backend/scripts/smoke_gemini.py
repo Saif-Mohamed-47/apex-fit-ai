@@ -6,6 +6,12 @@ from dotenv import load_dotenv
 # Ensure backend directory is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
+    except Exception:
+        pass
+
 from app.ai.providers.gemini import GeminiProvider
 
 load_dotenv()
@@ -17,7 +23,7 @@ async def main():
         print("Please set GEMINI_API_KEY in your environment or backend/.env file.")
         sys.exit(1)
 
-    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
     print(f"--- Gemini API Smoke Test (Model: {model}) ---")
     
     provider = GeminiProvider(api_key=api_key, model=model)

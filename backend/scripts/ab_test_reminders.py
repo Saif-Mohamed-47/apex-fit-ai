@@ -87,7 +87,7 @@ ARABIC_CASES = [
         "category": "Data Fidelity - Protein Target (Arabic, 100kg)",
         "prompt": "ما هو الهدف اليومي من البروتين لي لتنشيف الدهون؟",
         "user_weight_kg": 100.0, "user_age": 35, "user_height_cm": 185.0, "user_gender": "male",
-        "user_goal": "fat_loss", "user_activity": "moderate", "user_exp_months": 18, "user_days_per_week": 4
+        "user_goal": "lose_fat", "user_activity": "moderate", "user_exp_months": 18, "user_days_per_week": 4
     },
     {
         "id": "FID-SPLIT-1",

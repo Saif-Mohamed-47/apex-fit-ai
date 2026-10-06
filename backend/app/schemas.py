@@ -13,8 +13,6 @@ class GoalEnum(str, Enum):
     LOSE_FAT = "lose_fat"
     GAIN_MUSCLE = "gain_muscle"
     MAINTAIN = "maintain"
-    FAT_LOSS = "fat_loss"
-    MAINTENANCE = "maintenance"
 
 class Token(BaseModel):
     access_token: str

@@ -25,19 +25,15 @@ def calculate_macros(weight_kg, age, height_cm, gender, activity_level, goal):
     tdee = calculate_tdee(weight_kg, height_cm, age, gender, activity_level)
     
     clean_goal = str(goal).lower().strip() if goal else ""
-    if clean_goal == "fat_loss":
-        clean_goal = "lose_fat"
-    elif clean_goal == "maintenance":
-        clean_goal = "maintain"
 
     if clean_goal == "lose_fat":
         target_calories = max(1200, tdee - 500) # Floor at 1200
-        protein_g = 2 * weight_kg
+        protein_g = 2.0 * weight_kg
         carbs_pct = 0.55
         fat_pct = 0.45
     elif clean_goal == "gain_muscle":
         target_calories = tdee + 300
-        protein_g = 2 * weight_kg
+        protein_g = 2.0 * weight_kg
         carbs_pct = 0.65
         fat_pct = 0.35
     elif clean_goal == "maintain":

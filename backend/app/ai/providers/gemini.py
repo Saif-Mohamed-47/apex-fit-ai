@@ -1,5 +1,6 @@
 import os
 import json
+import asyncio
 import httpx
 import logging
 from typing import List, Dict, Any, AsyncGenerator, Optional
@@ -12,7 +13,7 @@ class GeminiProvider(BaseLLMProvider):
         self.api_key = api_key or os.getenv("GEMINI_API_KEY")
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY environment variable or argument is required for GeminiProvider.")
-        self.model = model or os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        self.model = model or os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
         
         env_timeout = os.getenv("LLM_TIMEOUT_SECONDS")
         if timeout is not None:
@@ -79,63 +80,92 @@ class GeminiProvider(BaseLLMProvider):
         url = f"{self.base_url}/models/{self.model}:generateContent"
         payload = self._convert_messages(messages)
         
-        try:
-            response = await self.client.post(url, json=payload)
-            response.raise_for_status()
-            data = response.json()
-            
-            candidates = data.get("candidates", [])
-            if not candidates:
-                # Check for prompt-level block
-                prompt_feedback = data.get("promptFeedback", {})
-                block_reason = prompt_feedback.get("blockReason")
-                if block_reason:
-                    raise GeminiContentBlockedError(finish_reason=f"PROMPT_BLOCKED_{block_reason}")
-                raise GeminiEmptyResponseError()
+        last_exception = None
+        for attempt in range(5):
+            try:
+                response = await self.client.post(url, json=payload)
+                if response.status_code in (429, 503) and attempt < 4:
+                    await asyncio.sleep(3.0 * (attempt + 1))
+                    continue
+                response.raise_for_status()
+                data = response.json()
                 
-            return self._extract_text_from_candidate(candidates[0])
-            
-        except GeminiContentBlockedError as e:
-            logger.warning("Gemini content blocked: %s", e)
+                candidates = data.get("candidates", [])
+                if not candidates:
+                    prompt_feedback = data.get("promptFeedback", {})
+                    block_reason = prompt_feedback.get("blockReason")
+                    if block_reason:
+                        raise GeminiContentBlockedError(finish_reason=f"PROMPT_BLOCKED_{block_reason}")
+                    raise GeminiEmptyResponseError()
+                    
+                return self._extract_text_from_candidate(candidates[0])
+            except (httpx.HTTPStatusError, httpx.TimeoutException) as e:
+                last_exception = e
+                if isinstance(e, httpx.HTTPStatusError) and e.response.status_code in (429, 503) and attempt < 4:
+                    await asyncio.sleep(3.0 * (attempt + 1))
+                    continue
+                break
+            except Exception as e:
+                last_exception = e
+                break
+
+        if isinstance(last_exception, GeminiContentBlockedError):
+            logger.warning("Gemini content blocked: %s", last_exception)
             return "The coach response was blocked due to safety guardrails. Please rephrase your query."
-        except GeminiEmptyResponseError as e:
-            logger.warning("Gemini empty response: %s", e)
+        elif isinstance(last_exception, GeminiEmptyResponseError):
+            logger.warning("Gemini empty response: %s", last_exception)
             return "The coach was unable to generate a response for this query."
-        except httpx.TimeoutException:
+        elif isinstance(last_exception, httpx.TimeoutException):
             return "The coach is taking too long to respond, please try again."
-        except Exception as e:
-            safe_error = self._mask_secret(str(e))
+        elif last_exception:
+            safe_error = self._mask_secret(str(last_exception))
             logger.error("Gemini provider error: %s", safe_error)
             return f"Error connecting to coach (Gemini): {safe_error}"
+        return "The coach was unable to generate a response."
 
     async def stream_response(self, messages: List[Dict[str, str]]) -> AsyncGenerator[str, None]:
         url = f"{self.base_url}/models/{self.model}:streamGenerateContent?alt=sse"
         payload = self._convert_messages(messages)
         
-        try:
-            async with self.client.stream("POST", url, json=payload) as response:
-                response.raise_for_status()
-                async for line in response.aiter_lines():
-                    if line.startswith("data: "):
-                        raw_json = line[len("data: "):].strip()
-                        if raw_json == "[DONE]":
-                            break
-                        try:
-                            data = json.loads(raw_json)
-                            candidates = data.get("candidates", [])
-                            if candidates:
-                                text_chunk = self._extract_text_from_candidate(candidates[0])
-                                if text_chunk:
-                                    yield text_chunk
-                        except (json.JSONDecodeError, GeminiEmptyResponseError):
-                            continue
-                        except GeminiContentBlockedError as e:
-                            logger.warning("Gemini stream content blocked: %s", e)
-                            yield "\n[Response truncated due to safety guardrails]"
-                            break
-        except httpx.TimeoutException:
-            yield "The coach is taking too long to respond, please try again."
-        except Exception as e:
-            safe_error = self._mask_secret(str(e))
-            logger.error("Gemini stream error: %s", safe_error)
-            yield f"Error streaming from coach (Gemini): {safe_error}"
+        for attempt in range(3):
+            try:
+                async with self.client.stream("POST", url, json=payload) as response:
+                    if response.status_code in (429, 503) and attempt < 2:
+                        await asyncio.sleep(1.5 * (attempt + 1))
+                        continue
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if line.startswith("data: "):
+                            raw_json = line[len("data: "):].strip()
+                            if raw_json == "[DONE]":
+                                break
+                            try:
+                                data = json.loads(raw_json)
+                                candidates = data.get("candidates", [])
+                                if candidates:
+                                    text_chunk = self._extract_text_from_candidate(candidates[0])
+                                    if text_chunk:
+                                        yield text_chunk
+                            except (json.JSONDecodeError, GeminiEmptyResponseError):
+                                continue
+                            except GeminiContentBlockedError as e:
+                                logger.warning("Gemini stream content blocked: %s", e)
+                                yield "\n[Response truncated due to safety guardrails]"
+                                break
+                    break
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code in (429, 503) and attempt < 2:
+                    await asyncio.sleep(1.5 * (attempt + 1))
+                    continue
+                safe_error = self._mask_secret(str(e))
+                logger.error("Gemini stream error: %s", safe_error)
+                yield f"Error streaming from coach (Gemini): {safe_error}"
+                break
+            except httpx.TimeoutException:
+                yield "The coach is taking too long to respond, please try again."
+                break
+            except Exception as e:
+                safe_error = self._mask_secret(str(e))
+                logger.error("Gemini stream error: %s", safe_error)
+                yield f"Error streaming from coach (Gemini): {safe_error}"
+                break
