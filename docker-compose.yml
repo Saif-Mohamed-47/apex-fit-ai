@@ -5,11 +5,11 @@ services:
     image: postgres:15
     restart: always
     environment:
-      POSTGRES_USER: apexuser
-      POSTGRES_PASSWORD: apexpassword
-      POSTGRES_DB: apexfit
+      POSTGRES_USER: ${POSTGRES_USER:-apexuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-apexpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-apexfit}
     ports:
-      - '5433:5432'
+      - '127.0.0.1:5433:5432'
     volumes:
       - apexfit_pgdata:/var/lib/postgresql/data
 
