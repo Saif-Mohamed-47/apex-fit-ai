@@ -558,9 +558,9 @@ async def run_evaluation(num_runs: int = 3, model_override: Optional[str] = None
             print(f"\n[{idx}/{len(EVAL_CASES)}] ({case['id']}) CATEGORY: {case['category']}")
             print(f"PROMPT: {prompt}")
 
-            if provider_name == "gemini":
-                await asyncio.sleep(2.0)
-
+            is_infra_error = False
+            infra_error_msg = ""
+            t0 = time.time()
             try:
                 messages = build_coach_messages(
                     user=user,
@@ -569,85 +569,101 @@ async def run_evaluation(num_runs: int = 3, model_override: Optional[str] = None
                     raw_history=[]
                 )
 
-                t0 = time.time()
                 initial_response = await provider.generate_response(messages)
                 call_latency = time.time() - t0
                 latencies.append(call_latency)
 
-                response = initial_response
-                retry_performed = False
+                if "taking too long to respond" in initial_response or "Error connecting to coach" in initial_response or not initial_response.strip():
+                    is_infra_error = True
+                    infra_error_msg = initial_response
+            except Exception as e:
+                call_latency = time.time() - t0
+                latencies.append(call_latency)
+                is_infra_error = True
+                infra_error_msg = f"Provider exception: {e}"
+                initial_response = f"INFRA_ERROR: {e}"
 
-                if "taking too long to respond" in initial_response or not initial_response.strip():
-                    check_stats["infra_errors"] += 1
+            if is_infra_error:
+                check_stats["infra_errors"] += 1
+                print(f"  LATENCY: {call_latency:.2f}s | INFRA ERROR DETECTED: {infra_error_msg[:120]}")
+                print(f"  OVERALL CASE VERDICT: EXCLUDED (INFRA_ERROR)")
+                continue
 
-                # PRE-RETRY checks
-                pre_lang_pass, pre_lang_msg = check_language(prompt, initial_response)
-                pre_art_pass, pre_art_msg = check_script_artifacts(initial_response)
+            response = initial_response
+            retry_performed = False
 
-                if "language" in case["checks"]:
-                    check_stats["language_pre_retry"]["total"] += 1
-                    if pre_lang_pass:
-                        check_stats["language_pre_retry"]["passed"] += 1
+            # PRE-RETRY checks
+            pre_lang_pass, pre_lang_msg = check_language(prompt, initial_response)
+            pre_art_pass, pre_art_msg = check_script_artifacts(initial_response)
 
-                if "script_artifacts" in case["checks"]:
-                    check_stats["script_artifacts_pre_retry"]["total"] += 1
-                    if pre_art_pass:
-                        check_stats["script_artifacts_pre_retry"]["passed"] += 1
+            if "language" in case["checks"]:
+                check_stats["language_pre_retry"]["total"] += 1
+                if pre_lang_pass:
+                    check_stats["language_pre_retry"]["passed"] += 1
 
-                # Retry for Arabic language/artifact failures
-                if detect_language(prompt) == "ar" and ("language" in case["checks"] or "script_artifacts" in case["checks"]):
-                    if not (pre_lang_pass and pre_art_pass):
-                        print(f"  [RETRY TRIGGERED] Arabic check failed ({pre_lang_msg} | {pre_art_msg}). Regenerating with stronger instruction...")
-                        retry_performed = True
-                        retry_messages = list(messages)
-                        retry_messages.append({
-                            "role": "system",
-                            "content": "CRITICAL MANDATE: You MUST write your ENTIRE response in fluent, natural Arabic. Do NOT use English, Cyrillic, Chinese, Japanese, or any foreign scripts."
-                        })
-                        t0_retry = time.time()
+            if "script_artifacts" in case["checks"]:
+                check_stats["script_artifacts_pre_retry"]["total"] += 1
+                if pre_art_pass:
+                    check_stats["script_artifacts_pre_retry"]["passed"] += 1
+
+            # Retry for Arabic language/artifact failures
+            if detect_language(prompt) == "ar" and ("language" in case["checks"] or "script_artifacts" in case["checks"]):
+                if not (pre_lang_pass and pre_art_pass):
+                    print(f"  [RETRY TRIGGERED] Arabic check failed ({pre_lang_msg} | {pre_art_msg}). Regenerating with stronger instruction...")
+                    retry_performed = True
+                    retry_messages = list(messages)
+                    retry_messages.append({
+                        "role": "system",
+                        "content": "CRITICAL MANDATE: You MUST write your ENTIRE response in fluent, natural Arabic. Do NOT use English, Cyrillic, Chinese, Japanese, or any foreign scripts."
+                    })
+                    t0_retry = time.time()
+                    try:
                         response = await provider.generate_response(retry_messages)
                         latencies.append(time.time() - t0_retry)
+                    except Exception as e:
+                        response = initial_response
+                        latencies.append(time.time() - t0_retry)
 
-                # POST-RETRY (final) checks
-                eval_checks = evaluate_case(case, prompt, response, exp_prot, exp_split)
+            # POST-RETRY (final) checks
+            eval_checks = evaluate_case(case, prompt, response, exp_prot, exp_split)
 
-                # Update stats
-                if "language" in case["checks"]:
-                    check_stats["language_post_retry"]["total"] += 1
-                    if eval_checks["language"][0]:
-                        check_stats["language_post_retry"]["passed"] += 1
+            # Update stats
+            if "language" in case["checks"]:
+                check_stats["language_post_retry"]["total"] += 1
+                if eval_checks["language"][0]:
+                    check_stats["language_post_retry"]["passed"] += 1
 
-                if "script_artifacts" in case["checks"]:
-                    check_stats["script_artifacts_post_retry"]["total"] += 1
-                    if eval_checks["script_artifacts"][0]:
-                        check_stats["script_artifacts_post_retry"]["passed"] += 1
+            if "script_artifacts" in case["checks"]:
+                check_stats["script_artifacts_post_retry"]["total"] += 1
+                if eval_checks["script_artifacts"][0]:
+                    check_stats["script_artifacts_post_retry"]["passed"] += 1
 
-                if eval_checks.get("prompt_echo", (False, ""))[0]:
-                    check_stats["echo_count"] += 1
+            if eval_checks.get("prompt_echo", (False, ""))[0]:
+                check_stats["echo_count"] += 1
 
-                if "refusal" in case["checks"]:
-                    status, _ = eval_checks["refusal"]
-                    if status == "PASS":
-                        check_stats["refusal_pass"] += 1
-                    elif status == "FAIL":
-                        check_stats["refusal_fail"] += 1
-                    elif status == "NEEDS_REVIEW":
-                        check_stats["refusal_review"] += 1
+            if "refusal" in case["checks"]:
+                status, _ = eval_checks["refusal"]
+                if status == "PASS":
+                    check_stats["refusal_pass"] += 1
+                elif status == "FAIL":
+                    check_stats["refusal_fail"] += 1
+                elif status == "NEEDS_REVIEW":
+                    check_stats["refusal_review"] += 1
 
-                for c_name in ["data_fidelity_protein", "data_fidelity_split", "technique_rdl", "technique_squat"]:
-                    if c_name in case["checks"]:
-                        check_stats[c_name]["total"] += 1
-                        if eval_checks[c_name][0]:
-                            check_stats[c_name]["passed"] += 1
+            for c_name in ["data_fidelity_protein", "data_fidelity_split", "technique_rdl", "technique_squat"]:
+                if c_name in case["checks"]:
+                    check_stats[c_name]["total"] += 1
+                    if eval_checks[c_name][0]:
+                        check_stats[c_name]["passed"] += 1
 
-                print(f"  LATENCY: {call_latency:.2f}s | CHECKS & VERDICTS:")
-                case_all_passed = True
-                for c_name, val in eval_checks.items():
-                    passed = val[0] if isinstance(val[0], bool) else (val[0] == "PASS")
-                    msg = val[1]
-                    print(f"    - {c_name:22s}: {msg}")
-                    if not passed and c_name != "prompt_echo":
-                        case_all_passed = False
+            print(f"  LATENCY: {call_latency:.2f}s | CHECKS & VERDICTS:")
+            case_all_passed = True
+            for c_name, val in eval_checks.items():
+                passed = val[0] if isinstance(val[0], bool) else (val[0] == "PASS")
+                msg = val[1]
+                print(f"    - {c_name:22s}: {msg}")
+                if not passed and c_name != "prompt_echo":
+                    case_all_passed = False
 
                 print(f"  OVERALL CASE VERDICT: {'PASS' if case_all_passed else 'FAIL'}")
                 print(f"  RESPONSE SNIPPET: {response[:150]}...")
