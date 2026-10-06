@@ -7,7 +7,13 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from . import models, database
 
-SECRET_KEY = "supersecretkey"  # In a real app, use environment variables
+import os
+
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET or JWT_SECRET == "supersecretkey":
+    raise ValueError("CRITICAL SECURITY ERROR: JWT_SECRET environment variable is missing or set to insecure default 'supersecretkey'. Set a strong secret in backend/.env.")
+
+SECRET_KEY = JWT_SECRET
 ALGORITHM = "HS256"
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
