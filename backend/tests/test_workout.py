@@ -95,3 +95,22 @@ def test_todays_focus_day_index_logged_yesterday(db_session):
     # Next day after Push (index 0) should be Pull (index 1)
     index = workout.get_todays_focus_day_index(user_id=1, db=db_session, schedule=schedule)
     assert index == 1
+
+def test_female_workout_recommendation_splits():
+    # 3 days female
+    rec_3d = workout.get_workout_recommendation(experience_months=4, days_per_week=3, gender="female")
+    assert "Female" in rec_3d["split"]
+    assert len(rec_3d["schedule"]) == 3
+    # Check that glute / lower exercises are prioritized
+    all_ex_names = [ex["exercise_name"] for day in rec_3d["schedule"] for ex in day["exercises"]]
+    assert any("Hip Thrust" in name or "Squat" in name or "RDL" in name or "Glute" in name for name in all_ex_names)
+
+    # 4 days female
+    rec_4d = workout.get_workout_recommendation(experience_months=12, days_per_week=4, gender="female")
+    assert "Female" in rec_4d["split"]
+    assert len(rec_4d["schedule"]) == 4
+
+    # 5 days female
+    rec_5d = workout.get_workout_recommendation(experience_months=24, days_per_week=5, gender="female")
+    assert "Female" in rec_5d["split"]
+    assert len(rec_5d["schedule"]) == 5

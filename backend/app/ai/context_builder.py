@@ -33,10 +33,20 @@ def estimate_weighted_chars(text: str) -> float:
     non_arabic_count = len(text) - arabic_count
     return (non_arabic_count * 1.0) + (arabic_count * 2.5)
 
-def build_system_instructions(language: str = "en") -> str:
+def build_system_instructions(
+    language: str = "en",
+    user_gender: Optional[str] = None,
+    coach_gender: Optional[str] = None
+) -> str:
     """Returns core system instructions with safety guardrails, medical referral rules, and data protection."""
+    coach_persona = "You are an encouraging, expert AI fitness and sports nutrition coach for Apex Fit AI.\n\n"
+    if coach_gender == "female":
+        coach_persona = "You are an inspiring, elite female fitness and sports nutrition coach for Apex Fit AI.\n\n"
+    elif coach_gender == "male":
+        coach_persona = "You are an elite, dedicated male strength and conditioning coach for Apex Fit AI.\n\n"
+
     base_instructions = (
-        "You are an encouraging, expert AI fitness and sports nutrition coach for Apex Fit AI.\n\n"
+        coach_persona +
         "CORE RULES:\n"
         "1. Help users exclusively with workouts, exercise technique, sports nutrition, macro/calorie targets, and fitness goals.\n"
         "2. If asked about non-fitness topics (such as programming, politics, general knowledge, or financial advice), decline in one concise sentence stating you only cover fitness and nutrition.\n"
@@ -45,6 +55,32 @@ def build_system_instructions(language: str = "en") -> str:
         "5. Keep responses concise, helpful, and direct."
     )
     
+    gender_rules = ""
+    if user_gender == "female":
+        if language == "ar":
+            gender_rules = (
+                "\n\nتوجيهات التدريب للمتدربات (FEMALE FOCUS):\n"
+                "- التركيز بشكل أساسي على نحت وتقوية الجزء السفلي (عضلات الأرداف/Glutes، أوتار الركبة/Hamstrings، الفخذين)، تقوية عضلات البطن والكور، وتحسين القوام وتناسق الجزء العلوي.\n"
+                "- مراعاة برامج اللياقة والنحت الذكي والتحمل العضلي وفترات الاستشفاء المناسبة للمتدربات."
+            )
+        else:
+            gender_rules = (
+                "\n\nGENDER-SPECIFIC TRAINING FOCUS (FEMALE TRAINEE):\n"
+                "- Prioritize lower body sculpt and tone (glutes, hamstrings, quads), core stability, and upper-body posture.\n"
+                "- Optimize volume and progressive overload for female physiology and muscle endurance."
+            )
+    elif user_gender == "male":
+        if language == "ar":
+            gender_rules = (
+                "\n\nتوجيهات التدريب للمتدربين (MALE FOCUS):\n"
+                "- التركيز على مبادئ زيادة الأحمال التدريجية (Progressive Overload) في التمارين المركبة الأساسية وتضخيم الجزء العلوي (الصدر، الظهر، الأكتاف، الذراعين) وبناء القوة والكتلة العضلية."
+            )
+        else:
+            gender_rules = (
+                "\n\nGENDER-SPECIFIC TRAINING FOCUS (MALE TRAINEE):\n"
+                "- Emphasize progressive overload, heavy compound lifts, upper-body hypertrophy (chest, back, shoulders, arms), and overall strength/muscle mass building."
+            )
+
     if language == "ar":
         language_rule = (
             "\n\nLANGUAGE:\n"
@@ -56,7 +92,7 @@ def build_system_instructions(language: str = "en") -> str:
             "Respond in clear, encouraging English."
         )
         
-    return base_instructions + language_rule
+    return base_instructions + gender_rules + language_rule
 
 def build_user_context_block(user: models.User, db: Session, max_budget_chars: Optional[float] = None) -> str:
     """
@@ -66,10 +102,17 @@ def build_user_context_block(user: models.User, db: Session, max_budget_chars: O
     if max_budget_chars is None:
         max_budget_chars = float(os.getenv("MAX_USER_CONTEXT_CHARS", "1500"))
 
-    rec = workout.get_workout_recommendation(user.training_experience_months, user.days_per_week)
+    rec = workout.get_workout_recommendation(
+        user.training_experience_months,
+        user.days_per_week,
+        getattr(user, "gender", "male")
+    )
     split = sanitize_user_data(rec.get("split", "N/A"))
     schedule = rec.get("schedule", [])
-    schedule_str = sanitize_user_data("; ".join([f"{day['day']}: {', '.join([ex['exercise_name'] for ex in day['exercises']])}" for day in schedule]))
+    if max_budget_chars and max_budget_chars < 800:
+        schedule_str = sanitize_user_data("; ".join([day['day'] for day in schedule]))
+    else:
+        schedule_str = sanitize_user_data("; ".join([f"{day['day']}: {', '.join([ex['exercise_name'] for ex in day['exercises']])}" for day in schedule]))
     
     targets = nutrition.calculate_macros(
         user.weight_kg, user.age, user.height_cm, user.gender, user.activity_level, user.goal
@@ -174,7 +217,8 @@ def build_coach_messages(
     user_message: str,
     raw_history: List[Any],
     max_history_chars: Optional[float] = None,
-    max_context_chars: Optional[float] = None
+    max_context_chars: Optional[float] = None,
+    coach_gender: Optional[str] = None
 ) -> List[Dict[str, str]]:
     """Constructs the complete formatted message array for the LLM provider."""
     if max_history_chars is None:
@@ -183,7 +227,12 @@ def build_coach_messages(
         max_context_chars = float(os.getenv("MAX_USER_CONTEXT_CHARS", "1500"))
         
     language = detect_language(user_message)
-    system_instructions = build_system_instructions(language=language)
+    user_gender = getattr(user, "gender", None)
+    system_instructions = build_system_instructions(
+        language=language,
+        user_gender=user_gender,
+        coach_gender=coach_gender
+    )
     user_context = build_user_context_block(user, db, max_budget_chars=max_context_chars)
     
     combined_system_prompt = f"{system_instructions}\n\n{user_context}"

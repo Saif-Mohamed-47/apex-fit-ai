@@ -4,8 +4,9 @@ import { setAuthCookie } from '@/lib/auth';
 export async function POST(request: Request) {
   const body = await request.json();
 
+  const backendUrl = process.env.BACKEND_URL || 'http://localhost:8000';
   // Call FastAPI backend
-  const response = await fetch(`${process.env.BACKEND_URL}/login`, {
+  const response = await fetch(`${backendUrl}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams(body),

@@ -20,8 +20,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
   }
 
+  const backendUrl = process.env.BACKEND_URL || 'http://localhost:8000';
+
   // 2. Create user in FastAPI
-  const signupRes = await fetch(`${process.env.BACKEND_URL}/users/`, {
+  const signupRes = await fetch(`${backendUrl}/users/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -33,7 +35,7 @@ export async function POST(request: Request) {
   }
 
   // 3. Auto-login to get the token
-  const loginRes = await fetch(`${process.env.BACKEND_URL}/login`, {
+  const loginRes = await fetch(`${backendUrl}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ username: data.email, password: data.password }),

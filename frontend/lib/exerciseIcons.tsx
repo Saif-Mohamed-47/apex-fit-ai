@@ -75,15 +75,26 @@ const DumbbellIcon = () => (
 export const exerciseIcons: Record<string, React.FC> = {
   'Bench Press': BenchPressIcon,
   'Incline Dumbbell Press': InclinePressIcon,
+  'Cable Chest Flyes': BenchPressIcon,
+  'Arnold Press': OverheadPressIcon,
   'Pull-Ups': PullUpIcon,
+  'Lat Pulldowns': PullUpIcon,
   'Barbell Rows': RowIcon,
+  'Seated Cable Rows': RowIcon,
   'Overhead Press': OverheadPressIcon,
   'Lateral Raises': LateralRaiseIcon,
+  'Face Pulls': OverheadPressIcon,
   'Bicep Curls': BicepCurlIcon,
+  'Hammer Curls': BicepCurlIcon,
   'Triceps Pushdowns': TricepsPushdownIcon,
+  'Skull Crushers': TricepsPushdownIcon,
   'Squats': SquatIcon,
+  'Bulgarian Split Squats': SquatIcon,
   'Romanian Deadlifts': DeadliftIcon,
+  'Lying Leg Curls': DeadliftIcon,
   'Calf Raises': CalfRaiseIcon,
+  'Hanging Leg Raises': PullUpIcon,
+  'Hip Thrusts': DeadliftIcon,
 };
 
 export const getIcon = (exerciseName: string) => {

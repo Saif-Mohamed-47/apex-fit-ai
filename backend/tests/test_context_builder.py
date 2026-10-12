@@ -163,3 +163,16 @@ def test_build_coach_messages_separate_budgets(db_session, dummy_user):
     assert "Reply in the language of the user's last message" in messages[2]["content"]
     assert messages[3] == {"role": "user", "content": user_msg}
 
+def test_system_instructions_gender_rules():
+    # Female trainee Arabic
+    ar_fem = build_system_instructions(language="ar", user_gender="female", coach_gender="female")
+    assert "توجيهات التدريب للمتدربات" in ar_fem
+    assert "الأرداف" in ar_fem
+    assert "female fitness and sports nutrition coach" in ar_fem
+
+    # Male trainee English
+    en_male = build_system_instructions(language="en", user_gender="male", coach_gender="male")
+    assert "GENDER-SPECIFIC TRAINING FOCUS (MALE TRAINEE)" in en_male
+    assert "Progressive Overload" in en_male or "progressive overload" in en_male
+    assert "male strength and conditioning coach" in en_male
+

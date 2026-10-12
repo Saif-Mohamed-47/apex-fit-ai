@@ -7,6 +7,9 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True)
     password_hash = Column(String)
+    role = Column(String, default="client")  # "client" or "coach"
+    coach_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    invite_code = Column(String, unique=True, nullable=True, index=True)
     age = Column(Integer)
     weight_kg = Column(Float)
     height_cm = Column(Float)
@@ -15,8 +18,16 @@ class User(Base):
     activity_level = Column(String)
     training_experience_months = Column(Integer)
     days_per_week = Column(Integer)
+
+    # Optional Coach Macro Overrides
+    custom_calories = Column(Integer, nullable=True)
+    custom_protein_g = Column(Float, nullable=True)
+    custom_carbs_g = Column(Float, nullable=True)
+    custom_fat_g = Column(Float, nullable=True)
+
     meals = relationship("Meal", back_populates="user")
     workout_logs = relationship("WorkoutLog", back_populates="user")
+    check_ins = relationship("CheckIn", foreign_keys="[CheckIn.user_id]", back_populates="user")
 
 class Meal(Base):
     __tablename__ = "meals"
@@ -43,3 +54,19 @@ class WorkoutLog(Base):
     set_number = Column(Integer)
     difficulty_rating = Column(String)
     user = relationship("User", back_populates="workout_logs")
+
+class CheckIn(Base):
+    __tablename__ = "check_ins"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    coach_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    logged_at = Column(DateTime, default=func.now())
+    weight_kg = Column(Float)
+    sleep_hours = Column(Float, nullable=True)
+    energy_rating = Column(Integer, nullable=True)  # 1-5 scale
+    soreness_rating = Column(Integer, nullable=True)  # 1-5 scale
+    client_notes = Column(String, nullable=True)
+    coach_feedback = Column(String, nullable=True)
+
+    user = relationship("User", foreign_keys=[user_id], back_populates="check_ins")
+

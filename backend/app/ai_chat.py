@@ -69,7 +69,11 @@ async def stream_chat_with_coach(
     macros = nutrition.calculate_macros(
         user.weight_kg, user.age, user.height_cm, user.gender, user.activity_level, calc_goal
     )
-    rec = workout.get_workout_recommendation(user.training_experience_months, user.days_per_week)
+    rec = workout.get_workout_recommendation(
+        user.training_experience_months, 
+        user.days_per_week, 
+        getattr(user, "gender", "male")
+    )
 
     verified_targets = {
         "protein_g": macros["protein_g"],
