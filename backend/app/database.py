@@ -23,9 +23,30 @@ except Exception:
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+def init_db_migrations():
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            if engine.dialect.name == "sqlite":
+                res = conn.execute(text("PRAGMA table_info(users)"))
+                cols = [r[1] for r in res.fetchall()]
+                if cols:
+                    if "subscription_tier" not in cols:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN subscription_tier VARCHAR DEFAULT 'free'"))
+                    if "ai_messages_today" not in cols:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN ai_messages_today INTEGER DEFAULT 0"))
+                    if "last_ai_message_date" not in cols:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN last_ai_message_date DATE"))
+                    conn.commit()
+    except Exception as e:
+        pass
+
+init_db_migrations()
+
 def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+

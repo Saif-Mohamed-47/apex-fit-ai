@@ -14,7 +14,11 @@ export async function POST(req: NextRequest) {
   });
 
   if (!backendRes.ok || !backendRes.body) {
-    return new Response('Failed to connect to coach streaming service', { status: backendRes.status });
+    const errorText = await backendRes.text().catch(() => 'Failed to connect to coach streaming service');
+    return new Response(errorText, { 
+      status: backendRes.status,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 
   // Pass upstream body stream directly without buffering

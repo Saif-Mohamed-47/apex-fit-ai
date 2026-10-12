@@ -60,13 +60,39 @@ const VerifiedTargetsCard = ({ targets }: { targets: VerifiedTargets }) => (
   </div>
 );
 
-export default function ChatWidget({ userGender = 'male', coachGender = 'male' }: { userGender?: string; coachGender?: string }) {
+interface ChatWidgetProps {
+  userGender?: string;
+  coachGender?: string;
+  subscriptionTier?: string;
+  messagesSentToday?: number;
+  dailyLimit?: number;
+}
+
+export default function ChatWidget({ 
+  userGender = 'male', 
+  coachGender = 'male',
+  subscriptionTier = 'free',
+  messagesSentToday = 0,
+  dailyLimit = 5
+}: ChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const isUnlimited = subscriptionTier === 'pro' || subscriptionTier === 'vip_coach';
+  const effectiveLimit = isUnlimited ? Infinity : (dailyLimit || 5);
+  const [quotaUsed, setQuotaUsed] = useState(messagesSentToday || 0);
+  const [quotaLocked, setQuotaLocked] = useState(false);
+
+  useEffect(() => {
+    setQuotaUsed(messagesSentToday || 0);
+  }, [messagesSentToday]);
+
+  const isQuotaExceeded = !isUnlimited && (quotaUsed >= effectiveLimit || quotaLocked);
+  const remainingQuota = isUnlimited ? null : Math.max(0, effectiveLimit - quotaUsed);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -83,6 +109,17 @@ export default function ChatWidget({ userGender = 'male', coachGender = 'male' }
   const sendMessage = async (presetText?: string) => {
     const textToSend = presetText || input;
     if (!textToSend.trim() || isLoading) return;
+
+    if (isQuotaExceeded) {
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: '⚠️ لقد استهلكت كوتة الرسائل اليومية المجانية (5/5). تتجدد الكوتة تلقائياً كل 24 ساعة، أو يمكنك الترقية إلى باقة Apex Pro للدردشة بلا حدود مع الكوتش.'
+        }
+      ]);
+      return;
+    }
 
     const userMessage: ChatMessage = { role: 'user', content: textToSend };
     const historyPayload = messages.map(m => ({ role: m.role, content: m.content }));
@@ -107,7 +144,28 @@ export default function ChatWidget({ userGender = 'male', coachGender = 'male' }
       });
 
       if (!res.ok || !res.body) {
+        if (res.status === 403) {
+          const errData = await res.json().catch(() => null);
+          const detailMsg = errData?.detail || '⚠️ انتهت كوتة الرسائل اليومية المجانية (5/5). تتجدد الكوتة تلقائياً كل 24 ساعة.';
+          setQuotaLocked(true);
+          setQuotaUsed(effectiveLimit);
+          setMessages(prev => {
+            const copy = [...prev];
+            if (copy[assistantIndex]) {
+              copy[assistantIndex] = {
+                role: 'assistant',
+                content: detailMsg
+              };
+            }
+            return copy;
+          });
+          return;
+        }
         throw new Error('Streaming connection failed');
+      }
+
+      if (!isUnlimited) {
+        setQuotaUsed(prev => prev + 1);
       }
 
       const reader = res.body.getReader();
@@ -243,10 +301,14 @@ export default function ChatWidget({ userGender = 'male', coachGender = 'male' }
 
         {/* Athletic AI Spark Capsule Badge */}
         <span className={`absolute -top-1 -left-1 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-lg border border-white/20 flex items-center gap-0.5 ${
-          isFemaleCoach ? 'bg-gradient-to-r from-pink-600 to-rose-600' : 'bg-gradient-to-r from-blue-600 to-indigo-600'
+          isQuotaExceeded 
+            ? 'bg-gradient-to-r from-rose-600 to-red-600'
+            : isFemaleCoach 
+              ? 'bg-gradient-to-r from-pink-600 to-rose-600' 
+              : 'bg-gradient-to-r from-blue-600 to-indigo-600'
         }`}>
-          <span>⚡</span>
-          <span>AI</span>
+          <span>{isQuotaExceeded ? '🔒' : '⚡'}</span>
+          <span>{isQuotaExceeded ? '0/5' : 'AI'}</span>
         </span>
 
         {/* Hover Tooltip (Extends towards the left into empty space) */}
@@ -255,7 +317,9 @@ export default function ChatWidget({ userGender = 'male', coachGender = 'male' }
             <span className="text-xs font-black text-white">{coachTitle}</span>
             <span className="text-[9px] font-bold text-emerald-400">🟢 متصل</span>
           </div>
-          <span className="text-[10px] text-gray-300 block mt-1">اضغط للتحدث مع الكوتش</span>
+          <span className="text-[10px] text-gray-300 block mt-1">
+            {isQuotaExceeded ? 'انتهت كوتة الرسائل اليومية' : 'اضغط للتحدث مع الكوتش'}
+          </span>
         </div>
       </button>
 
@@ -288,9 +352,26 @@ export default function ChatWidget({ userGender = 'male', coachGender = 'male' }
                 <span className="text-sm font-black">{coachTitle}</span>
                 <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded-full border border-emerald-500/30">Live AI</span>
               </div>
-              <p className="text-[10px] text-gray-400 font-normal">
-                {userGender === 'female' ? '🌸 برنامج مخصص للمتدربات' : '⚡ برنامج مخصص للمتدربين'}
-              </p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-[10px] text-gray-400 font-normal">
+                  {userGender === 'female' ? '🌸 للمتدربات' : '⚡ للمتدربين'}
+                </p>
+                {isUnlimited ? (
+                  <span className="text-[9px] bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 px-1.5 py-0.2 rounded-full border border-amber-500/30 font-bold flex items-center gap-0.5">
+                    <span>👑</span>
+                    <span>Pro بلا حدود</span>
+                  </span>
+                ) : (
+                  <span className={`text-[9px] px-1.5 py-0.2 rounded-full border font-bold flex items-center gap-0.5 ${
+                    remainingQuota === 0
+                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                      : 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                  }`}>
+                    <span>⚡</span>
+                    <span>كوتة اليوم: {remainingQuota}/5</span>
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <button 
@@ -381,26 +462,48 @@ export default function ChatWidget({ userGender = 'male', coachGender = 'male' }
           )}
         </div>
 
-        {/* Input Bar */}
-        <div className="p-3 border-t border-white/10 flex gap-2 bg-[#121418]">
-          <input 
-            className="flex-1 bg-[#0A0B0D] text-white px-3.5 py-2.5 rounded-xl text-xs sm:text-sm outline-none border border-white/10 focus:border-blue-500 transition-colors disabled:opacity-50" 
-            value={input} 
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && sendMessage()}
-            placeholder="اسأل الكوتش عن تمرينك، أوزانك، أو أكلك..."
-            disabled={isLoading}
-          />
-          <button 
-            type="button"
-            onClick={() => sendMessage()} 
-            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-xl text-xs font-bold disabled:opacity-50 transition-all flex items-center gap-1.5 shadow-lg shadow-blue-600/30 shrink-0" 
-            disabled={isLoading || !input.trim()}
-          >
-            <span>إرسال</span>
-            <SendIcon />
-          </button>
-        </div>
+        {/* Input Bar or Quota Lockout State */}
+        {isQuotaExceeded ? (
+          <div className="p-3.5 border-t border-rose-500/30 bg-[#140D0F] flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-rose-300 text-xs">
+              <span className="text-base">🔒</span>
+              <span className="font-semibold leading-tight">
+                انتهت الكوتة المجانية اليوم (5/5). تتجدد تلقائياً كل 24 ساعة.
+              </span>
+            </div>
+            <button 
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                window.dispatchEvent(new CustomEvent('open-pricing-modal'));
+              }}
+              className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-black text-xs rounded-xl shadow-[0_0_15px_rgba(245,158,11,0.3)] transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+            >
+              <span>👑</span>
+              <span>ترقية إلى Apex Pro للدردشة بلا حدود الآن</span>
+            </button>
+          </div>
+        ) : (
+          <div className="p-3 border-t border-white/10 flex gap-2 bg-[#121418]">
+            <input 
+              className="flex-1 bg-[#0A0B0D] text-white px-3.5 py-2.5 rounded-xl text-xs sm:text-sm outline-none border border-white/10 focus:border-blue-500 transition-colors disabled:opacity-50" 
+              value={input} 
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && sendMessage()}
+              placeholder="اسأل الكوتش عن تمرينك، أوزانك، أو أكلك..."
+              disabled={isLoading}
+            />
+            <button 
+              type="button"
+              onClick={() => sendMessage()} 
+              className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-xl text-xs font-bold disabled:opacity-50 transition-all flex items-center gap-1.5 shadow-lg shadow-blue-600/30 shrink-0" 
+              disabled={isLoading || !input.trim()}
+            >
+              <span>إرسال</span>
+              <SendIcon />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

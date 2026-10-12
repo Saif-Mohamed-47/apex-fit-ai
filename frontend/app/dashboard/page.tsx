@@ -268,7 +268,13 @@ export default async function DashboardPage() {
       <FoodSwapWidget />
       
       <MealForm />
-      <ChatWidget userGender={user?.gender || 'male'} coachGender={isFemale ? 'female' : 'male'} />
+      <ChatWidget 
+        userGender={user?.gender || 'male'} 
+        coachGender={isFemale ? 'female' : 'male'} 
+        subscriptionTier={user?.subscription_tier || 'free'}
+        messagesSentToday={user?.ai_messages_today || 0}
+        dailyLimit={user?.ai_daily_limit || 5}
+      />
     </div>
   );
 }

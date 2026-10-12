@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 
 interface PricingModalProps {
@@ -22,6 +22,15 @@ export default function PricingModal({ currentCoachId, onSuccess }: PricingModal
   const [cardCvc, setCardCvc] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successData, setSuccessData] = useState<any>(null);
+
+  useEffect(() => {
+    const handleOpen = () => {
+      setIsOpen(true);
+      setStep('plans');
+    };
+    window.addEventListener('open-pricing-modal', handleOpen);
+    return () => window.removeEventListener('open-pricing-modal', handleOpen);
+  }, []);
 
   const handleSelectPlan = (plan: 'pro' | 'vip_coach') => {
     setSelectedPlan(plan);

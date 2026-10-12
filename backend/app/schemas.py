@@ -42,6 +42,9 @@ class User(UserBase):
     custom_protein_g: Optional[float] = None
     custom_carbs_g: Optional[float] = None
     custom_fat_g: Optional[float] = None
+    subscription_tier: Optional[str] = "free"
+    ai_messages_today: Optional[int] = 0
+    ai_daily_limit: Optional[int] = 5
 
     class Config:
         from_attributes = True

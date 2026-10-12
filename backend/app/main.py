@@ -49,6 +49,9 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 
 @app.get("/users/me", response_model=schemas.User)
 def get_me(current_user: models.User = Depends(auth.get_current_user)):
+    tier = current_user.subscription_tier or "free"
+    is_unlimited = tier in ("pro", "vip_coach") or current_user.role == "coach"
+    current_user.ai_daily_limit = 99999 if is_unlimited else 5
     return current_user
 
 @app.get("/nutrition-target/")
@@ -189,12 +192,35 @@ def cleanup_workout_logs(
 
 from fastapi.responses import StreamingResponse
 
+def check_and_increment_ai_quota(current_user: models.User, db: Session):
+    tier = current_user.subscription_tier or "free"
+    is_unlimited = tier in ("pro", "vip_coach") or current_user.role == "coach"
+    if is_unlimited:
+        return
+
+    today = date.today()
+    if current_user.last_ai_message_date != today:
+        current_user.ai_messages_today = 0
+        current_user.last_ai_message_date = today
+        db.commit()
+
+    FREE_DAILY_LIMIT = 5
+    if (current_user.ai_messages_today or 0) >= FREE_DAILY_LIMIT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="⚠️ لقد استهلكت كوتة الرسائل اليومية المجانية (5/5). تتجدد الكوتة تلقائياً كل 24 ساعة، أو يمكنك الترقية إلى باقة Apex Pro للدردشة بلا حدود."
+        )
+
+    current_user.ai_messages_today = (current_user.ai_messages_today or 0) + 1
+    db.commit()
+
 @app.post("/chat/")
 async def chat_with_coach_endpoint(
     request: schemas.ChatRequest,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
+    check_and_increment_ai_quota(current_user, db)
     reply = await ai_chat.chat_with_coach(
         user_message=request.message, 
         conversation_history=request.history, 
@@ -209,6 +235,7 @@ async def chat_stream_endpoint(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
+    check_and_increment_ai_quota(current_user, db)
     generator = ai_chat.stream_chat_with_coach(
         user_message=request.message,
         conversation_history=request.history,
@@ -227,6 +254,11 @@ def checkout_subscription(
 ):
     txn_id = f"APEX-TXN-{secrets.token_hex(4).upper()}"
     coach_code = None
+
+    # Upgrade subscription tier
+    current_user.subscription_tier = req.plan_id
+    current_user.ai_messages_today = 0
+    db.commit()
 
     if req.plan_id == "vip_coach":
         coach = db.query(models.User).filter(models.User.role == "coach").first()

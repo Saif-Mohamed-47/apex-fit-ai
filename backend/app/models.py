@@ -25,6 +25,11 @@ class User(Base):
     custom_carbs_g = Column(Float, nullable=True)
     custom_fat_g = Column(Float, nullable=True)
 
+    # Subscription & 24h AI Rate Limit Quota
+    subscription_tier = Column(String, default="free")  # "free", "pro", "vip_coach"
+    ai_messages_today = Column(Integer, default=0)
+    last_ai_message_date = Column(Date, nullable=True)
+
     meals = relationship("Meal", back_populates="user")
     workout_logs = relationship("WorkoutLog", back_populates="user")
     check_ins = relationship("CheckIn", foreign_keys="[CheckIn.user_id]", back_populates="user")
