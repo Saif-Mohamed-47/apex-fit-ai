@@ -10,6 +10,8 @@ import WarmUpCalculator from '@/components/WarmUpCalculator';
 import FoodSwapWidget from '@/components/FoodSwapWidget';
 import Link from 'next/link';
 import ApexLogo from '@/components/ApexLogo';
+import ExportPlanPdfButton from '@/components/ExportPlanPdfButton';
+import PricingModal from '@/components/PricingModal';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,10 +65,16 @@ export default async function DashboardPage() {
             <h1 className="font-heading text-3xl md:text-4xl mt-1">Apex Fit AI</h1>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
+          <PricingModal currentCoachId={user?.coach_id} />
+          <ExportPlanPdfButton 
+            user={user} 
+            nutritionData={nutritionData} 
+            workoutData={workoutData} 
+          />
           <Link 
             href="/dashboard/check-in"
-            className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-all"
+            className="px-3.5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-all"
           >
             📝 Weekly Check-in
           </Link>

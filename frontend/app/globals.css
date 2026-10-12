@@ -64,3 +64,29 @@ body::after {
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+
+@media print {
+  body::before, body::after {
+    display: none !important;
+  }
+  body {
+    background: white !important;
+    color: #111827 !important;
+  }
+  .no-print, #apex-coach-chat-widget {
+    display: none !important;
+  }
+  #apex-printable-plan {
+    background: white !important;
+    color: #111827 !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+  #apex-printable-plan * {
+    color: #111827 !important;
+    border-color: #d1d5db !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+  }
+}
+

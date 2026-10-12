@@ -128,3 +128,12 @@ class ChatRequest(BaseModel):
     message: str
     history: list[ChatMessage] = []
 
+class CheckoutRequest(BaseModel):
+    plan_id: str  # 'pro' or 'vip_coach'
+    payment_method: str  # 'vodafone_cash' or 'card'
+    sender_phone: Optional[str] = None
+    transfer_ref: Optional[str] = None
+    card_number: Optional[str] = None
+    card_expiry: Optional[str] = None
+
+

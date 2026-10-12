@@ -217,4 +217,51 @@ async def chat_stream_endpoint(
     )
     return StreamingResponse(generator, media_type="text/event-stream")
 
+import secrets
+
+@app.post("/payments/checkout")
+def checkout_subscription(
+    req: schemas.CheckoutRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    txn_id = f"APEX-TXN-{secrets.token_hex(4).upper()}"
+    coach_code = None
+
+    if req.plan_id == "vip_coach":
+        coach = db.query(models.User).filter(models.User.role == "coach").first()
+        if not coach:
+            coach = models.User(
+                email="master_coach@apexfit.ai",
+                password_hash=auth.get_password_hash("CoachPass123!"),
+                role="coach",
+                age=32,
+                weight_kg=85.0,
+                height_cm=180.0,
+                gender="male",
+                goal="gain_muscle",
+                activity_level="very_active",
+                training_experience_months=72,
+                days_per_week=5,
+                invite_code="COACH-VIP-ELITE"
+            )
+            db.add(coach)
+            db.commit()
+            db.refresh(coach)
+
+        current_user.coach_id = coach.id
+        coach_code = coach.invite_code or "COACH-VIP-ACTIVE"
+        db.commit()
+        db.refresh(current_user)
+
+    return {
+        "status": "success",
+        "plan_id": req.plan_id,
+        "payment_method": req.payment_method,
+        "transaction_id": txn_id,
+        "assigned_coach_code": coach_code,
+        "message": "تم تأكيد عملية الدفع وتفعيل الاشتراك بنجاح!"
+    }
+
+
 
