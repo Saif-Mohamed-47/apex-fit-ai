@@ -6,6 +6,8 @@ import { toast } from 'react-hot-toast';
 type OnboardingData = {
   email: string;
   password: string;
+  full_name?: string;
+  phone_number?: string;
   role: 'client' | 'coach';
   coach_invite_code?: string;
   age: number | '';
@@ -24,6 +26,8 @@ export default function SignupSteps() {
   const [formData, setFormData] = useState<OnboardingData>({
     email: '',
     password: '',
+    full_name: '',
+    phone_number: '',
     role: 'client',
     coach_invite_code: '',
     age: '',
@@ -41,17 +45,25 @@ export default function SignupSteps() {
   };
 
   const validateStep1Client = () => {
-    const { email, password, age, weight_kg, height_cm, gender } = formData;
+    const { email, password, full_name, phone_number, age, weight_kg, height_cm, gender } = formData;
     if (!email || !password || age === '' || weight_kg === '' || height_cm === '' || !gender) {
-      toast.error('All fields (Email, Password, Age, Weight, Height, Gender) are required.');
+      toast.error('جميع الحقول (البريد، كلمة المرور، العمر، الوزن، الطول، النوع) مطلوبة.');
+      return false;
+    }
+    if (!full_name || !full_name.trim()) {
+      toast.error('يرجى إدخال اسمك بالكامل.');
+      return false;
+    }
+    if (!phone_number || !phone_number.trim()) {
+      toast.error('يرجى إدخال رقم هاتفك / الواتساب.');
       return false;
     }
     if (password.length > 72) {
-      toast.error('Password must be 72 characters or less.');
+      toast.error('كلمة المرور يجب أن لا تتجاوز 72 حرفاً.');
       return false;
     }
     if (typeof age !== 'number' || age < 13 || age > 100) {
-      toast.error('Please enter a valid age (13-100).');
+      toast.error('يرجى إدخال عمر صحيح (13-100 سنة).');
       return false;
     }
     return true;
@@ -186,6 +198,22 @@ export default function SignupSteps() {
           </div>
 
           <input 
+            type="text" 
+            placeholder="اسم الكابتن بالكامل / Coach Full Name" 
+            value={formData.full_name} 
+            className="w-full bg-[#0A0B0D] border border-white/10 text-white rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" 
+            onChange={(e) => handleUpdate('full_name', e.target.value)} 
+          />
+
+          <input 
+            type="tel" 
+            placeholder="رقم الهاتف / الواتساب (Phone / WhatsApp)" 
+            value={formData.phone_number} 
+            className="w-full bg-[#0A0B0D] border border-white/10 text-white rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" 
+            onChange={(e) => handleUpdate('phone_number', e.target.value)} 
+          />
+
+          <input 
             type="email" 
             placeholder="Coach Email / إيميل الكابتن" 
             value={formData.email} 
@@ -242,6 +270,22 @@ export default function SignupSteps() {
             <h3 className="text-sm font-bold text-gray-200">الخطوة 1 من 2: بيانات الحساب والجسم</h3>
             <span className="text-[11px] text-blue-400 font-mono">Step 1/2</span>
           </div>
+
+          <input 
+            type="text" 
+            placeholder="الاسم بالكامل / Full Name" 
+            value={formData.full_name} 
+            className="w-full bg-[#0A0B0D] border border-white/10 text-white rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+            onChange={(e) => handleUpdate('full_name', e.target.value)} 
+          />
+
+          <input 
+            type="tel" 
+            placeholder="رقم الهاتف أو الواتساب / Phone (e.g. 01012345678)" 
+            value={formData.phone_number} 
+            className="w-full bg-[#0A0B0D] border border-white/10 text-white rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
+            onChange={(e) => handleUpdate('phone_number', e.target.value)} 
+          />
 
           <input 
             type="email" 

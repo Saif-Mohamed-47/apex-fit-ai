@@ -20,6 +20,8 @@ class Token(BaseModel):
 
 class UserBase(BaseModel):
     email: str
+    full_name: Optional[str] = None
+    phone_number: Optional[str] = None
     age: int
     weight_kg: float
     height_cm: float
@@ -82,6 +84,8 @@ class CheckIn(CheckInCreate):
 class ClientSummary(BaseModel):
     id: int
     email: str
+    full_name: Optional[str] = None
+    phone_number: Optional[str] = None
     goal: str
     weight_kg: float
     last_log_date: Optional[str] = None

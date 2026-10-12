@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { toast } from 'react-hot-toast';
 import LogoutButton from '@/components/LogoutButton';
@@ -9,6 +9,8 @@ import ApexLogo from '@/components/ApexLogo';
 interface ClientSummary {
   id: number;
   email: string;
+  full_name?: string | null;
+  phone_number?: string | null;
   goal: string;
   weight_kg: number;
   last_log_date: string | null;
@@ -24,6 +26,8 @@ interface ClientDetail {
   client: {
     id: number;
     email: string;
+    full_name?: string | null;
+    phone_number?: string | null;
     gender?: string;
     age: number;
     weight_kg: number;
@@ -43,6 +47,15 @@ interface ClientDetail {
   recent_checkins: any[];
 }
 
+const AVATAR_PRESETS = [
+  { id: 'preset_1', title: 'كابتن كمال أجسام (Olympia Champion)', src: '/images/landing_hero_bodybuilder.jpg', gender: 'male' },
+  { id: 'preset_2', title: 'كابتن لياقة وتدريب بدني (Elite Fitness Pro)', src: '/images/coach_portrait.jpg', gender: 'male' },
+  { id: 'preset_3', title: 'كابتن قوة بدنية وتمرين أثقال (Power Athlete)', src: '/images/trainee_workout.jpg', gender: 'male' },
+  { id: 'preset_4', title: 'كابتن ماستر تدريب وأداء (Performance Master)', src: '/images/coach_athlete_collaboration.jpg', gender: 'both' },
+  { id: 'preset_5', title: 'كابتن مدربة لياقة ورشاقة (Elite Female Coach)', src: '/images/female_coach_portrait.jpg', gender: 'female' },
+  { id: 'preset_6', title: 'كابتن تدريب وظيفي وتنسيق قوام (Pro Athlete)', src: '/images/female_trainee_workout.jpg', gender: 'female' },
+];
+
 export default function CoachDashboardPage() {
   const [activeTab, setActiveTab] = useState<'clients' | 'profile' | 'license'>('clients');
   const [clients, setClients] = useState<ClientSummary[]>([]);
@@ -55,6 +68,12 @@ export default function CoachDashboardPage() {
   const [coachRatingCount, setCoachRatingCount] = useState<number>(18);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+
+  // Avatar Selection & Upload Modal
+  const [avatarModal, setAvatarModal] = useState(false);
+  const [selectedAvatarPreview, setSelectedAvatarPreview] = useState<string>('');
+  const [savingAvatar, setSavingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Add Client Form Modal
   const [addClientModal, setAddClientModal] = useState(false);
@@ -81,6 +100,76 @@ export default function CoachDashboardPage() {
   const [customCarbs, setCustomCarbs] = useState<number>(220);
   const [customFat, setCustomFat] = useState<number>(60);
   const [submittingMacros, setSubmittingMacros] = useState(false);
+
+  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('يرجى اختيار ملف صورة صالح (JPG, PNG, WebP).');
+      return;
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error('حجم الصورة كبير جداً، يرجى اختيار صورة أصغر من 15 ميجابايت.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 800;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height = Math.round((height * MAX_SIZE) / width);
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width = Math.round((width * MAX_SIZE) / height);
+            height = MAX_SIZE;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+        setSelectedAvatarPreview(compressedDataUrl);
+        toast.success('تم تحميل الصورة بنجاح! اضغط حفظ لتطبيقها 📸');
+      };
+      img.src = result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveAvatar = async (urlToSave: string) => {
+    if (!urlToSave) return;
+    setSavingAvatar(true);
+    try {
+      const res = await fetch('/api/coach/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatar_url: urlToSave }),
+      });
+      if (res.ok) {
+        setCoachAvatarUrl(urlToSave);
+        toast.success('تم حفظ وتحديث صورتك الشخصية بنجاح! 📸');
+        setAvatarModal(false);
+      } else {
+        toast.error('فشل حفظ الصورة الشخصية');
+      }
+    } catch {
+      toast.error('خطأ في الاتصال بالسيرفر');
+    } finally {
+      setSavingAvatar(false);
+    }
+  };
 
   useEffect(() => {
     fetchCoachData();
@@ -356,30 +445,42 @@ export default function CoachDashboardPage() {
           <div className="flex flex-col lg:flex-row items-center justify-between gap-6 relative z-10">
             
             <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-right">
-              {/* Profile Avatar Frame */}
-              <div className={`relative w-24 h-24 sm:w-28 sm:h-28 rounded-3xl overflow-hidden border-2 transition-all duration-300 shrink-0 ${
-                isFemaleCoach 
-                  ? 'border-pink-500 shadow-[0_0_30px_rgba(236,72,153,0.4)]' 
-                  : 'border-blue-500 shadow-[0_0_30px_rgba(59,130,246,0.4)]'
-              }`}>
+              {/* Profile Avatar Frame (Click to change) */}
+              <div 
+                onClick={() => {
+                  setSelectedAvatarPreview(currentAvatar);
+                  setAvatarModal(true);
+                }}
+                className={`relative w-24 h-24 sm:w-28 sm:h-28 rounded-3xl overflow-hidden border-2 transition-all duration-300 shrink-0 cursor-pointer group shadow-2xl ${
+                  isFemaleCoach 
+                    ? 'border-pink-500 hover:border-pink-400 shadow-[0_0_30px_rgba(236,72,153,0.4)]' 
+                    : 'border-blue-500 hover:border-blue-400 shadow-[0_0_30px_rgba(59,130,246,0.4)]'
+                }`}
+                title="اضغط هنا لتغيير الصورة الشخصية (من هاتفك/كمبيوترك أو أفتار جاهز)"
+              >
                 <Image 
                   src={currentAvatar} 
                   alt="Coach Avatar" 
                   fill 
                   priority
-                  className="object-cover"
+                  className="object-cover group-hover:scale-105 transition-transform duration-300"
                 />
+                {/* Camera Hover Overlay */}
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-white">
+                  <span className="text-xl">📷</span>
+                  <span className="text-[10px] font-black">تغيير الصورة</span>
+                </div>
                 <span className="absolute bottom-1.5 right-1.5 w-4 h-4 rounded-full bg-emerald-400 border-2 border-[#10141C] animate-pulse"></span>
               </div>
 
               <div>
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
-                  <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-1.5 ${
+                  <span className={`px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-1.5 ${
                     isFemaleCoach
-                      ? 'bg-pink-500/20 text-pink-300 border-pink-500/40'
-                      : 'bg-blue-500/20 text-blue-300 border-blue-500/40'
+                      ? 'bg-pink-500/20 text-pink-300 border-pink-500/40 shadow-[0_0_15px_rgba(236,72,153,0.25)]'
+                      : 'bg-blue-500/20 text-blue-300 border-blue-500/40 shadow-[0_0_15px_rgba(59,130,246,0.25)]'
                   }`}>
-                    <span>{isFemaleCoach ? '👩' : '👨'}</span>
+                    <span>{isFemaleCoach ? '🌸' : '👨'}</span>
                     <span>{isFemaleCoach ? 'كابتن مدربة معتمدة • Women Division' : 'كابتن مدرب معتمد • Men Division'}</span>
                   </span>
 
@@ -388,31 +489,14 @@ export default function CoachDashboardPage() {
                     <span className="text-gray-300 font-bold text-xs">Apex Fit AI Pro Suite</span>
                   </div>
 
-                  {/* Gender Theme Switcher */}
-                  <div className="flex items-center bg-[#07090C] border border-white/10 rounded-full p-1 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setCoachGender('male')}
-                      className={`px-3 py-1 rounded-full font-bold transition-all ${
-                        !isFemaleCoach
-                          ? 'bg-blue-600 text-white shadow-[0_0_10px_rgba(59,130,246,0.5)]'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      👨 قسم الرجال
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCoachGender('female')}
-                      className={`px-3 py-1 rounded-full font-bold transition-all ${
-                        isFemaleCoach
-                          ? 'bg-pink-600 text-white shadow-[0_0_10px_rgba(236,72,153,0.5)]'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      🌸 قسم السيدات
-                    </button>
-                  </div>
+                  {/* Division Badge (Fixed by coach gender - no switcher) */}
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${
+                    isFemaleCoach 
+                      ? 'bg-pink-950/40 text-pink-300 border-pink-500/30' 
+                      : 'bg-blue-950/40 text-blue-300 border-blue-500/30'
+                  }`}>
+                    <span>{isFemaleCoach ? 'قسم السيدات' : 'قسم الرجال'}</span>
+                  </span>
                 </div>
 
                 <h1 className="text-2xl sm:text-3xl font-black mt-2 text-white">
@@ -567,8 +651,8 @@ export default function CoachDashboardPage() {
                       } ${isExpired ? 'border-red-500/30' : 'border-white/10'}`}
                     >
                       {/* Trainee Card Header */}
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3.5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3.5 min-w-0 flex-1">
                           <div className={`w-14 h-14 rounded-2xl overflow-hidden relative border shrink-0 ${
                             client.gender === 'female' 
                               ? 'border-pink-500/50 shadow-[0_0_15px_rgba(236,72,153,0.3)]' 
@@ -582,11 +666,32 @@ export default function CoachDashboardPage() {
                             />
                           </div>
 
-                          <div>
-                            <p className="font-black text-white text-sm sm:text-base truncate max-w-[170px]">
-                              {client.email}
+                          <div className="min-w-0 flex-1">
+                            <p className="font-black text-white text-base truncate">
+                              {client.full_name && client.full_name.trim() !== '' ? client.full_name : client.email.split('@')[0]}
                             </p>
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="flex flex-col text-[11px] text-gray-400 mt-0.5 space-y-0.5">
+                              <span className="truncate text-gray-300 font-mono flex items-center gap-1">
+                                ✉️ {client.email}
+                              </span>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-emerald-400 font-mono font-bold flex items-center gap-1">
+                                  📱 {client.phone_number ? client.phone_number : 'بدون رقم هاتف'}
+                                </span>
+                                {client.phone_number && (
+                                  <a
+                                    href={`https://wa.me/${client.phone_number.replace(/[^0-9]/g, '')}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-[10px] bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full inline-flex items-center gap-1 transition-all"
+                                    title="مراسلة المتدرب على واتساب"
+                                  >
+                                    💬 واتساب
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 mt-2">
                               <span className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
                                 client.gender === 'female'
                                   ? 'bg-pink-500/20 text-pink-300 border border-pink-500/30'
@@ -606,7 +711,7 @@ export default function CoachDashboardPage() {
                           type="button"
                           onClick={() => handleRemoveClient(client)}
                           title="طرد / إلغاء اشتراك المتدرب"
-                          className="w-8 h-8 rounded-xl bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-500/30 flex items-center justify-center transition-all hover:scale-105"
+                          className="w-8 h-8 rounded-xl bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-500/30 flex items-center justify-center transition-all hover:scale-105 shrink-0"
                         >
                           ✕
                         </button>
@@ -681,10 +786,21 @@ export default function CoachDashboardPage() {
             <div className="bg-[#12151B] border border-white/10 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl">
               
               <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 border-b border-white/10">
-                <div className={`relative w-28 h-28 rounded-3xl overflow-hidden border-2 shrink-0 ${
-                  isFemaleCoach ? 'border-pink-500' : 'border-blue-500'
-                }`}>
-                  <Image src={currentAvatar} alt="Coach Avatar" fill className="object-cover" />
+                <div 
+                  onClick={() => {
+                    setSelectedAvatarPreview(currentAvatar);
+                    setAvatarModal(true);
+                  }}
+                  className={`relative w-28 h-28 rounded-3xl overflow-hidden border-2 shrink-0 cursor-pointer group shadow-2xl ${
+                    isFemaleCoach ? 'border-pink-500 hover:border-pink-400' : 'border-blue-500 hover:border-blue-400'
+                  }`}
+                  title="اضغط هنا لتغيير صورتك الشخصية"
+                >
+                  <Image src={currentAvatar} alt="Coach Avatar" fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-white">
+                    <span className="text-xl">📷</span>
+                    <span className="text-[10px] font-black">تغيير الصورة</span>
+                  </div>
                 </div>
 
                 <div className="space-y-2 text-center sm:text-right">
@@ -706,6 +822,48 @@ export default function CoachDashboardPage() {
                 </div>
               </div>
 
+              {/* Photo & Avatar Controls */}
+              <div className="space-y-3 bg-[#0A0B0E] p-5 rounded-2xl border border-white/10">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <label className="block text-xs font-black text-white uppercase tracking-wider">
+                      📸 الصورة الشخصية للكوتش (Avatar Photo)
+                    </label>
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      ارفع صورتك من جهازك أو هاتفك المحمول، أو اختر أفتار رياضي جاهز بضغطة زر.
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedAvatarPreview(currentAvatar);
+                        setAvatarModal(true);
+                      }}
+                      className={`px-4 py-2.5 rounded-xl font-black text-xs text-white shadow-lg transition-all flex items-center gap-1.5 ${
+                        isFemaleCoach
+                          ? 'bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 shadow-pink-600/30'
+                          : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 shadow-blue-600/30'
+                      }`}
+                    >
+                      <span>📷</span>
+                      <span>تغيير الصورة أو اختيار أفتار</span>
+                    </button>
+
+                    {coachAvatarUrl && (
+                      <button
+                        type="button"
+                        onClick={() => handleSaveAvatar('')}
+                        className="px-3 py-2.5 bg-white/10 hover:bg-white/20 text-xs rounded-xl text-gray-300 font-bold transition-all"
+                      >
+                        استعادة الافتراضية
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Bio & Credentials Input */}
               <div className="space-y-3">
                 <label className="block text-xs font-black text-gray-300 uppercase tracking-wider">
@@ -718,31 +876,6 @@ export default function CoachDashboardPage() {
                   placeholder="اكتب نبذة عنك، شهادات التدريب الحاصل عليها (مثل ISSA, ACE)، سنوات خبرتك في بطولات كمال الأجسام والفتنس، وفلسفتك التدريبية لتظهر لجميع لاعبيك..."
                   className="w-full bg-[#0A0B0E] border border-white/10 text-white rounded-2xl p-4 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 outline-none leading-relaxed"
                 />
-              </div>
-
-              {/* Avatar Image URL Input */}
-              <div className="space-y-3">
-                <label className="block text-xs font-black text-gray-300 uppercase tracking-wider">
-                  🖼️ رابط صورتك الشخصية (Avatar Image URL)
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={coachAvatarUrl}
-                    onChange={(e) => setCoachAvatarUrl(e.target.value)}
-                    placeholder="ضع رابط صورة شخصية مخصصة أو اختر الصورة الافتراضية أدناه..."
-                    className="flex-1 bg-[#0A0B0E] border border-white/10 text-white rounded-xl px-4 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 font-mono"
-                  />
-                  {coachAvatarUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setCoachAvatarUrl('')}
-                      className="px-3 py-2 bg-white/10 hover:bg-white/20 text-xs rounded-xl text-gray-300 font-bold"
-                    >
-                      استعادة الافتراضية
-                    </button>
-                  )}
-                </div>
               </div>
 
               <div className="pt-2 flex justify-end">
@@ -1050,8 +1183,15 @@ export default function CoachDashboardPage() {
           <div className="bg-[#141619] border border-white/15 rounded-3xl max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto space-y-6 shadow-2xl custom-scrollbar">
             <div className="flex justify-between items-center border-b border-white/10 pb-4">
               <div>
-                <h3 className="text-xl font-bold text-white">سجل التمارين والفحوصات</h3>
-                <p className="text-xs text-gray-400">{selectedClient.client.email}</p>
+                <h3 className="text-xl font-bold text-white">
+                  {selectedClient.client.full_name || selectedClient.client.email.split('@')[0]}
+                </h3>
+                <div className="flex items-center gap-3 mt-1 text-xs text-gray-400 font-mono">
+                  <span>✉️ {selectedClient.client.email}</span>
+                  {selectedClient.client.phone_number && (
+                    <span className="text-emerald-400 font-bold">📱 {selectedClient.client.phone_number}</span>
+                  )}
+                </div>
               </div>
               <button 
                 onClick={() => setSelectedClient(null)} 
@@ -1076,6 +1216,150 @@ export default function CoachDashboardPage() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Avatar Photo Selection & Direct Upload */}
+      {avatarModal && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-[#141619] border border-white/15 rounded-3xl max-w-xl w-full p-6 sm:p-8 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div className="flex justify-between items-center pb-3 border-b border-white/10">
+              <h3 className="text-lg sm:text-xl font-black text-white flex items-center gap-2">
+                <span>📸</span>
+                <span>تغيير صورة الكابتن (رفع من الجهاز أو اختيار أفتار)</span>
+              </h3>
+              <button 
+                onClick={() => setAvatarModal(false)} 
+                className="text-gray-400 hover:text-white font-bold text-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Current Active / Selected Preview */}
+            <div className="flex flex-col sm:flex-row items-center gap-5 p-4 bg-[#0A0B0E] border border-white/10 rounded-2xl">
+              <div className={`relative w-24 h-24 rounded-2xl overflow-hidden border-2 shrink-0 ${
+                isFemaleCoach ? 'border-pink-500' : 'border-blue-500'
+              }`}>
+                <Image 
+                  src={selectedAvatarPreview || currentAvatar} 
+                  alt="Preview Avatar" 
+                  fill 
+                  className="object-cover" 
+                />
+              </div>
+              <div className="space-y-1 text-center sm:text-right flex-1">
+                <p className="text-sm font-black text-white">معاينة صورتك المختارة</p>
+                <p className="text-xs text-gray-400">
+                  يمكنك رفع صورة شخصية لك من جهازك (موبايل أو كمبيوتر) أو اختيار أفتار رياضي من المعرض أدناه.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleSaveAvatar(selectedAvatarPreview || currentAvatar)}
+                  disabled={savingAvatar}
+                  className={`mt-2 px-5 py-2 rounded-xl text-xs font-black text-white shadow-lg transition-all ${
+                    isFemaleCoach
+                      ? 'bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 shadow-pink-600/30'
+                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 shadow-blue-600/30'
+                  }`}
+                >
+                  {savingAvatar ? 'جاري الحفظ...' : '💾 تأكيد وحفظ هذه الصورة'}
+                </button>
+              </div>
+            </div>
+
+            {/* Section 1: Upload from Device */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-black text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                  <span>📁</span>
+                  <span>رفع صورة من هاتفك أو جهازك (Camera / Files)</span>
+                </label>
+              </div>
+
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                accept="image/*" 
+                onChange={handleImageFileUpload} 
+                className="hidden" 
+              />
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full py-4 px-4 bg-gradient-to-r from-white/5 to-white/10 hover:from-white/10 hover:to-white/15 border-2 border-dashed border-white/20 hover:border-blue-500/60 rounded-2xl text-xs sm:text-sm font-bold text-white transition-all flex flex-col items-center justify-center gap-2 group"
+              >
+                <span className="text-2xl group-hover:scale-110 transition-transform">📱 / 💻</span>
+                <span>اضغط هنا لاختيار صورة من هاتفك أو جهاز الكمبيوتر</span>
+                <span className="text-[11px] text-gray-400 font-normal">يدعم التقاط بالكاميرا أو اختيار من المعرض JPG, PNG, WebP</span>
+              </button>
+            </div>
+
+            {/* Section 2: Presets Grid */}
+            <div className="space-y-3">
+              <label className="text-xs font-black text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                <span>⚡</span>
+                <span>أو اختر من الأفاتارات الرياضية الجاهزة للمدربين:</span>
+              </label>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {AVATAR_PRESETS.map((preset) => {
+                  const isSelected = (selectedAvatarPreview || currentAvatar) === preset.src;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => setSelectedAvatarPreview(preset.src)}
+                      className={`relative rounded-2xl overflow-hidden border-2 text-right p-1.5 transition-all group flex flex-col gap-1.5 bg-[#0B0D11] ${
+                        isSelected 
+                          ? isFemaleCoach ? 'border-pink-500 shadow-[0_0_20px_rgba(236,72,153,0.4)] ring-2 ring-pink-500/40' : 'border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.4)] ring-2 ring-blue-500/40'
+                          : 'border-white/10 hover:border-white/30'
+                      }`}
+                    >
+                      <div className="relative w-full h-24 rounded-xl overflow-hidden bg-black/50">
+                        <Image 
+                          src={preset.src} 
+                          alt={preset.title} 
+                          fill 
+                          className="object-cover group-hover:scale-105 transition-transform duration-300" 
+                        />
+                        {isSelected && (
+                          <span className="absolute top-1.5 right-1.5 bg-emerald-500 text-black text-[10px] font-black px-1.5 py-0.5 rounded-md shadow">
+                            ✓ مختار
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] font-bold text-gray-200 truncate px-1">{preset.title}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="pt-2 flex gap-3 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => handleSaveAvatar(selectedAvatarPreview || currentAvatar)}
+                disabled={savingAvatar}
+                className={`flex-1 py-3 rounded-xl font-black text-xs text-white shadow-lg transition-all ${
+                  isFemaleCoach
+                    ? 'bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500'
+                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500'
+                }`}
+              >
+                {savingAvatar ? 'جاري الحفظ...' : 'تأكيد وحفظ الصورة 💾'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAvatarModal(false)}
+                className="px-5 py-3 bg-white/10 hover:bg-white/15 text-gray-300 font-bold text-xs rounded-xl"
+              >
+                إلغاء
+              </button>
             </div>
           </div>
         </div>

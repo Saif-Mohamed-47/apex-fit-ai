@@ -19,6 +19,10 @@ class User(Base):
     training_experience_months = Column(Integer)
     days_per_week = Column(Integer)
 
+    # Contact & Profile Info
+    full_name = Column(String, nullable=True)
+    phone_number = Column(String, nullable=True)
+
     # Optional Coach Macro Overrides
     custom_calories = Column(Integer, nullable=True)
     custom_protein_g = Column(Float, nullable=True)

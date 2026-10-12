@@ -102,6 +102,8 @@ def get_coach_clients(
             schemas.ClientSummary(
                 id=client.id,
                 email=client.email,
+                full_name=client.full_name,
+                phone_number=client.phone_number,
                 goal=client.goal,
                 weight_kg=client.weight_kg,
                 last_log_date=last_date,
@@ -188,6 +190,8 @@ def get_client_details(
         "client": {
             "id": client.id,
             "email": client.email,
+            "full_name": client.full_name,
+            "phone_number": client.phone_number,
             "gender": client.gender or "male",
             "age": client.age,
             "weight_kg": client.weight_kg,

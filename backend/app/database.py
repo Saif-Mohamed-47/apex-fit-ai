@@ -51,6 +51,10 @@ def init_db_migrations():
                         conn.execute(text("ALTER TABLE users ADD COLUMN coach_joined_date DATE"))
                     if "subscription_expires_at" not in cols:
                         conn.execute(text("ALTER TABLE users ADD COLUMN subscription_expires_at DATE"))
+                    if "full_name" not in cols:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN full_name VARCHAR"))
+                    if "phone_number" not in cols:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN phone_number VARCHAR"))
                     conn.commit()
     except Exception as e:
         pass
