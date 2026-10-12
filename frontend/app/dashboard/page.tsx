@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { authenticatedFetch } from '@/lib/api';
 import Image from 'next/image';
 import MealForm from '@/components/MealForm';
@@ -37,6 +38,10 @@ async function getDashboardData() {
 
 export default async function DashboardPage() {
   const { workoutData, meals, nutritionData, user, checkIns } = await getDashboardData();
+
+  if (user?.role === 'coach') {
+    redirect('/coach/dashboard');
+  }
   const totalCalories = meals.reduce((sum: number, m: any) => sum + m.calories, 0);
   const remainingCalories = nutritionData ? Math.max(nutritionData.target_calories - totalCalories, 0) : 0;
   const caloriePercentage = nutritionData ? Math.min((totalCalories / nutritionData.target_calories) * 100, 100) : 0;

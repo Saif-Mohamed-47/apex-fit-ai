@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from datetime import date
+from datetime import date, timedelta
 from . import models, schemas, database, auth, workout, nutrition, adaptive, ai_chat, coach, checkin
 from .database import engine, get_db
 
@@ -28,18 +28,22 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email already registered")
 
     coach_id = None
-    if user.coach_invite_code:
+    if user.coach_invite_code and user.coach_invite_code.strip():
+        code_clean = user.coach_invite_code.strip().upper()
         coach_user = db.query(models.User).filter(
-            models.User.invite_code == user.coach_invite_code.strip().upper(),
+            models.User.invite_code == code_clean,
             models.User.role == "coach"
         ).first()
-        if coach_user:
-            coach_id = coach_user.id
+        if not coach_user:
+            raise HTTPException(status_code=400, detail="كود المدرب غير صحيح أو غير مفعل. تأكد من كتابة الكود بشكل صحيح.")
+        coach_id = coach_user.id
 
     hashed_password = auth.get_password_hash(user.password)
     user_data = user.dict(exclude={"password", "email", "coach_invite_code"})
     if coach_id:
         user_data["coach_id"] = coach_id
+        user_data["coach_joined_date"] = date.today()
+        user_data["subscription_expires_at"] = date.today() + timedelta(days=30)
 
     new_user = models.User(email=user.email, password_hash=hashed_password, **user_data)
     db.add(new_user)

@@ -18,8 +18,28 @@ export async function POST(request: Request) {
 
   const { access_token } = await response.json();
 
+  // Fetch user profile to get role and gender
+  let userRole = 'client';
+  let userGender = 'male';
+  try {
+    const meRes = await fetch(`${backendUrl}/users/me`, {
+      headers: { Authorization: `Bearer ${access_token}` },
+    });
+    if (meRes.ok) {
+      const meData = await meRes.json();
+      userRole = meData.role || 'client';
+      userGender = meData.gender || 'male';
+    }
+  } catch (err) {
+    console.error('Error fetching user details after login:', err);
+  }
+
   // Create response and set httpOnly cookie
-  const res = NextResponse.json({ success: true });
+  const res = NextResponse.json({ 
+    success: true,
+    role: userRole,
+    gender: userGender
+  });
   await setAuthCookie(res, access_token);
 
   return res;

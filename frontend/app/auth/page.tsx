@@ -32,7 +32,14 @@ export default function AuthPage() {
       });
 
       if (res.ok) {
-        window.location.href = '/dashboard';
+        const data = await res.json();
+        if (data.role === 'coach') {
+          toast.success('مرحباً بك يا كوتش! جاري فتح لوحة المدرب...');
+          window.location.href = '/coach/dashboard';
+        } else {
+          toast.success('مرحباً بك يا بطل! جاري الدخول للوحة التدريب...');
+          window.location.href = '/dashboard';
+        }
       } else {
         toast.error('Invalid email or password');
       }

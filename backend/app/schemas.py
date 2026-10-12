@@ -45,6 +45,13 @@ class User(UserBase):
     subscription_tier: Optional[str] = "free"
     ai_messages_today: Optional[int] = 0
     ai_daily_limit: Optional[int] = 5
+    is_coach_active: Optional[bool] = False
+    coach_bio: Optional[str] = None
+    coach_avatar_url: Optional[str] = None
+    coach_rating: Optional[float] = 4.9
+    coach_rating_count: Optional[int] = 18
+    coach_joined_date: Optional[date] = None
+    subscription_expires_at: Optional[date] = None
 
     class Config:
         from_attributes = True
@@ -80,6 +87,22 @@ class ClientSummary(BaseModel):
     last_log_date: Optional[str] = None
     has_custom_macros: bool = False
     gender: Optional[str] = "male"
+    joined_date: Optional[str] = None
+    subscription_tier: Optional[str] = "free"
+    subscription_expires_at: Optional[str] = None
+    duration_days: Optional[int] = 30
+
+class CoachProfileUpdate(BaseModel):
+    bio: Optional[str] = None
+    avatar_url: Optional[str] = None
+
+class AddClientRequest(BaseModel):
+    email: str
+
+class CoachActivationRequest(BaseModel):
+    payment_method: str = "vodafone_cash"
+    sender_phone: Optional[str] = None
+    transfer_ref: Optional[str] = None
 
 class Login(BaseModel):
     email: str

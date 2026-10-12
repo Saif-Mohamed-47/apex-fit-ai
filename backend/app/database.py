@@ -37,6 +37,20 @@ def init_db_migrations():
                         conn.execute(text("ALTER TABLE users ADD COLUMN ai_messages_today INTEGER DEFAULT 0"))
                     if "last_ai_message_date" not in cols:
                         conn.execute(text("ALTER TABLE users ADD COLUMN last_ai_message_date DATE"))
+                    if "is_coach_active" not in cols:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN is_coach_active BOOLEAN DEFAULT 0"))
+                    if "coach_bio" not in cols:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN coach_bio VARCHAR"))
+                    if "coach_avatar_url" not in cols:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN coach_avatar_url VARCHAR"))
+                    if "coach_rating" not in cols:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN coach_rating FLOAT DEFAULT 4.9"))
+                    if "coach_rating_count" not in cols:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN coach_rating_count INTEGER DEFAULT 18"))
+                    if "coach_joined_date" not in cols:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN coach_joined_date DATE"))
+                    if "subscription_expires_at" not in cols:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN subscription_expires_at DATE"))
                     conn.commit()
     except Exception as e:
         pass

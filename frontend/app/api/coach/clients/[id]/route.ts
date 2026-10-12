@@ -10,3 +10,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const data = await res.json();
   return Response.json(data);
 }
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const res = await authenticatedFetch(`/coach/clients/${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    return new Response('Failed to remove client', { status: res.status });
+  }
+  const data = await res.json();
+  return Response.json(data);
+}

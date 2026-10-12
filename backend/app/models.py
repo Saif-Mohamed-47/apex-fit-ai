@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Date, DateTime, func
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Date, DateTime, Boolean, func
 from sqlalchemy.orm import relationship
 from .database import Base
 
@@ -29,6 +29,15 @@ class User(Base):
     subscription_tier = Column(String, default="free")  # "free", "pro", "vip_coach"
     ai_messages_today = Column(Integer, default=0)
     last_ai_message_date = Column(Date, nullable=True)
+
+    # Coach Specific Fields & Client Tracking
+    is_coach_active = Column(Boolean, default=False)
+    coach_bio = Column(String, nullable=True)
+    coach_avatar_url = Column(String, nullable=True)
+    coach_rating = Column(Float, default=4.9)
+    coach_rating_count = Column(Integer, default=18)
+    coach_joined_date = Column(Date, nullable=True)
+    subscription_expires_at = Column(Date, nullable=True)
 
     meals = relationship("Meal", back_populates="user")
     workout_logs = relationship("WorkoutLog", back_populates="user")
