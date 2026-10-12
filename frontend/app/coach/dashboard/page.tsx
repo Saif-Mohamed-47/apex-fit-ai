@@ -431,16 +431,62 @@ export default function CoachDashboardPage() {
   const currentAvatar = coachAvatarUrl || defaultAvatar;
 
   return (
-    <div className={`min-h-screen text-white p-4 sm:p-6 md:p-10 font-sans transition-colors duration-500 ${
-      isFemaleCoach ? 'bg-[#0E0B12]' : 'bg-[#0A0B0E]'
-    }`} dir="rtl">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div 
+      className="min-h-screen text-white p-4 sm:p-6 md:p-10 font-sans relative overflow-x-hidden selection:bg-blue-500 selection:text-white" 
+      dir="rtl"
+      style={{
+        backgroundImage: isFemaleCoach
+          ? `radial-gradient(ellipse 80% 50% at 50% -10%, rgba(236, 72, 153, 0.28), transparent 70%),
+             radial-gradient(ellipse 60% 40% at 90% 40%, rgba(168, 85, 247, 0.20), transparent 60%),
+             radial-gradient(circle at 10% 80%, rgba(244, 63, 94, 0.16), transparent 50%),
+             linear-gradient(to bottom, rgba(14, 11, 20, 0.82), rgba(8, 6, 12, 0.96)),
+             url('/gym-bg.jpg')`
+          : `radial-gradient(ellipse 80% 50% at 50% -10%, rgba(37, 99, 235, 0.30), transparent 70%),
+             radial-gradient(ellipse 60% 40% at 90% 40%, rgba(99, 102, 241, 0.22), transparent 60%),
+             radial-gradient(circle at 10% 80%, rgba(14, 165, 233, 0.18), transparent 50%),
+             linear-gradient(to bottom, rgba(10, 13, 20, 0.82), rgba(5, 7, 12, 0.96)),
+             url('/gym-bg.jpg')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+      }}
+    >
+      {/* High-Tech Cyber Grid Matrix Overlay */}
+      <div 
+        className="fixed inset-0 pointer-events-none z-0 opacity-20"
+        style={{
+          backgroundImage: `linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                            linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px)`,
+          backgroundSize: '40px 40px',
+        }}
+      />
+
+      {/* Atmospheric Ambient Glow Orbs */}
+      <div 
+        className={`fixed top-0 left-1/2 -translate-x-1/2 w-[1100px] h-[450px] blur-[150px] pointer-events-none z-0 transition-colors duration-700 ${
+          isFemaleCoach 
+            ? 'bg-gradient-to-b from-pink-500/30 via-purple-600/20 to-transparent' 
+            : 'bg-gradient-to-b from-blue-500/30 via-indigo-600/20 to-transparent'
+        }`}
+      />
+      <div 
+        className={`fixed top-1/4 -right-20 w-[550px] h-[550px] blur-[160px] pointer-events-none z-0 animate-pulse ${
+          isFemaleCoach ? 'bg-pink-600/15' : 'bg-blue-600/15'
+        }`}
+      />
+      <div 
+        className={`fixed bottom-20 -left-20 w-[550px] h-[550px] blur-[160px] pointer-events-none z-0 ${
+          isFemaleCoach ? 'bg-purple-600/15' : 'bg-cyan-600/15'
+        }`}
+      />
+
+      <div className="max-w-7xl mx-auto space-y-8 relative z-10">
         
         {/* Top Header Banner with Gender Persona Theme */}
-        <header className={`relative overflow-hidden rounded-3xl p-6 sm:p-8 shadow-2xl border transition-all duration-300 ${
+        <header className={`relative overflow-hidden rounded-3xl p-6 sm:p-8 shadow-2xl border backdrop-blur-2xl transition-all duration-300 ${
           isFemaleCoach
-            ? 'bg-gradient-to-r from-[#171220] via-[#20152B] to-[#171220] border-pink-500/30 shadow-[0_0_50px_rgba(236,72,153,0.15)]'
-            : 'bg-gradient-to-r from-[#10141C] via-[#151C28] to-[#10141C] border-blue-500/30 shadow-[0_0_50px_rgba(59,130,246,0.15)]'
+            ? 'bg-[#150F20]/80 border-pink-500/40 shadow-[0_0_60px_rgba(236,72,153,0.2)]'
+            : 'bg-[#0E131E]/80 border-blue-500/40 shadow-[0_0_60px_rgba(59,130,246,0.2)]'
         }`}>
           <div className="flex flex-col lg:flex-row items-center justify-between gap-6 relative z-10">
             
@@ -550,13 +596,13 @@ export default function CoachDashboardPage() {
         </header>
 
         {/* Global Navigation Tabs */}
-        <div className="flex border-b border-white/10 gap-2 text-sm font-bold">
+        <div className="flex gap-2 text-sm font-bold bg-[#0A0E17]/60 backdrop-blur-xl p-2 rounded-2xl border border-white/5 overflow-x-auto">
           <button
             onClick={() => setActiveTab('clients')}
-            className={`pb-3 px-4 border-b-2 transition-all flex items-center gap-2 ${
+            className={`py-2.5 px-4 rounded-xl transition-all flex items-center gap-2 ${
               activeTab === 'clients'
-                ? isFemaleCoach ? 'border-pink-500 text-pink-400' : 'border-blue-500 text-blue-400'
-                : 'border-transparent text-gray-400 hover:text-white'
+                ? isFemaleCoach ? 'bg-pink-600/20 text-pink-300 border border-pink-500/40 shadow-[0_0_15px_rgba(236,72,153,0.3)]' : 'bg-blue-600/20 text-blue-300 border border-blue-500/40 shadow-[0_0_15px_rgba(59,130,246,0.3)]'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
             <span>📋</span>
@@ -565,10 +611,10 @@ export default function CoachDashboardPage() {
 
           <button
             onClick={() => setActiveTab('profile')}
-            className={`pb-3 px-4 border-b-2 transition-all flex items-center gap-2 ${
+            className={`py-2.5 px-4 rounded-xl transition-all flex items-center gap-2 ${
               activeTab === 'profile'
-                ? isFemaleCoach ? 'border-pink-500 text-pink-400' : 'border-blue-500 text-blue-400'
-                : 'border-transparent text-gray-400 hover:text-white'
+                ? isFemaleCoach ? 'bg-pink-600/20 text-pink-300 border border-pink-500/40 shadow-[0_0_15px_rgba(236,72,153,0.3)]' : 'bg-blue-600/20 text-blue-300 border border-blue-500/40 shadow-[0_0_15px_rgba(59,130,246,0.3)]'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
             <span>👑</span>
@@ -577,10 +623,10 @@ export default function CoachDashboardPage() {
 
           <button
             onClick={() => setActiveTab('license')}
-            className={`pb-3 px-4 border-b-2 transition-all flex items-center gap-2 ${
+            className={`py-2.5 px-4 rounded-xl transition-all flex items-center gap-2 ${
               activeTab === 'license'
-                ? isFemaleCoach ? 'border-pink-500 text-pink-400' : 'border-blue-500 text-blue-400'
-                : 'border-transparent text-gray-400 hover:text-white'
+                ? isFemaleCoach ? 'bg-pink-600/20 text-pink-300 border border-pink-500/40 shadow-[0_0_15px_rgba(236,72,153,0.3)]' : 'bg-blue-600/20 text-blue-300 border border-blue-500/40 shadow-[0_0_15px_rgba(59,130,246,0.3)]'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
             <span>⚡</span>
@@ -599,7 +645,7 @@ export default function CoachDashboardPage() {
                   placeholder="بحث في المتدربين بالإيميل أو الهدف..." 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full sm:w-80 bg-[#12151B] border border-white/10 text-white rounded-xl px-4 py-3 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  className="w-full sm:w-80 bg-[#0B0F17]/90 backdrop-blur-xl border border-white/10 text-white rounded-xl px-4 py-3 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-lg"
                 />
               </div>
 
@@ -607,7 +653,7 @@ export default function CoachDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setAddClientModal(true)}
-                  className={`px-4 py-2.5 rounded-xl font-bold text-xs text-white shadow-lg transition-all flex items-center gap-2 ${
+                  className={`px-5 py-3 rounded-xl font-black text-xs text-white shadow-xl transition-all flex items-center gap-2 ${
                     isFemaleCoach 
                       ? 'bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 shadow-pink-600/30' 
                       : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 shadow-blue-600/30'
@@ -625,7 +671,7 @@ export default function CoachDashboardPage() {
                 جاري تحميل قائمة المتدربين...
               </div>
             ) : filteredClients.length === 0 ? (
-              <div className="bg-[#12151B] border border-white/10 rounded-3xl p-12 text-center text-gray-400 space-y-4">
+              <div className="bg-[#0C1017]/80 backdrop-blur-2xl border border-white/10 rounded-3xl p-12 text-center text-gray-400 space-y-4 shadow-2xl">
                 <p className="text-2xl font-black text-white">لا يوجد متدربين مرتبطين بك حالياً</p>
                 <p className="text-xs sm:text-sm max-w-md mx-auto text-gray-300 leading-relaxed">
                   شارك كود دعوتك الفريد <span className="text-blue-400 font-mono font-bold bg-blue-950/40 px-2 py-0.5 rounded border border-blue-500/30">{inviteCode || 'كود غير مفعل'}</span> مع المتدرب عند تسجيل حسابه، أو اضغط زر <strong className="text-white">إضافة متدرب بالإيميل</strong> لربطه بحسابك فوراً!
@@ -646,17 +692,19 @@ export default function CoachDashboardPage() {
                   return (
                     <div 
                       key={client.id}
-                      className={`bg-[#12151B] border rounded-3xl p-6 space-y-5 transition-all duration-300 hover:-translate-y-1 shadow-xl relative overflow-hidden ${
-                        client.gender === 'female' ? 'hover:border-pink-500/50' : 'hover:border-blue-500/50'
-                      } ${isExpired ? 'border-red-500/30' : 'border-white/10'}`}
+                      className={`backdrop-blur-2xl border rounded-3xl p-6 space-y-4 transition-all duration-300 hover:-translate-y-1.5 shadow-2xl relative overflow-hidden group ${
+                        client.gender === 'female' 
+                          ? 'bg-[#130E1C]/85 hover:border-pink-500/60 hover:shadow-[0_0_35px_rgba(236,72,153,0.25)]' 
+                          : 'bg-[#0B0F18]/85 hover:border-blue-500/60 hover:shadow-[0_0_35px_rgba(59,130,246,0.25)]'
+                      } ${isExpired ? 'border-red-500/40' : 'border-white/10'}`}
                     >
-                      {/* Trainee Card Header */}
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                          <div className={`w-14 h-14 rounded-2xl overflow-hidden relative border shrink-0 ${
+                      {/* Trainee Card Header: Top Bar with Avatar, Name, Badges & Expel Button */}
+                      <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/5">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className={`w-14 h-14 rounded-2xl overflow-hidden relative border-2 shrink-0 ${
                             client.gender === 'female' 
-                              ? 'border-pink-500/50 shadow-[0_0_15px_rgba(236,72,153,0.3)]' 
-                              : 'border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.3)]'
+                              ? 'border-pink-500 shadow-[0_0_15px_rgba(236,72,153,0.35)]' 
+                              : 'border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.35)]'
                           }`}>
                             <Image 
                               src={client.gender === 'female' ? '/images/female_trainee_workout.jpg' : '/images/trainee_workout.jpg'} 
@@ -667,31 +715,10 @@ export default function CoachDashboardPage() {
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <p className="font-black text-white text-base truncate">
+                            <p className="font-black text-white text-base sm:text-lg truncate">
                               {client.full_name && client.full_name.trim() !== '' ? client.full_name : client.email.split('@')[0]}
                             </p>
-                            <div className="flex flex-col text-[11px] text-gray-400 mt-0.5 space-y-0.5">
-                              <span className="truncate text-gray-300 font-mono flex items-center gap-1">
-                                ✉️ {client.email}
-                              </span>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-emerald-400 font-mono font-bold flex items-center gap-1">
-                                  📱 {client.phone_number ? client.phone_number : 'بدون رقم هاتف'}
-                                </span>
-                                {client.phone_number && (
-                                  <a
-                                    href={`https://wa.me/${client.phone_number.replace(/[^0-9]/g, '')}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-[10px] bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full inline-flex items-center gap-1 transition-all"
-                                    title="مراسلة المتدرب على واتساب"
-                                  >
-                                    💬 واتساب
-                                  </a>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 mt-2">
+                            <div className="flex items-center gap-1.5 mt-1">
                               <span className={`px-2 py-0.5 rounded-md text-[10px] font-black ${
                                 client.gender === 'female'
                                   ? 'bg-pink-500/20 text-pink-300 border border-pink-500/30'
@@ -699,7 +726,7 @@ export default function CoachDashboardPage() {
                               }`}>
                                 {client.gender === 'female' ? '🌸 بطلة' : '⚡ بطل'}
                               </span>
-                              <span className="text-[10px] text-gray-400 bg-white/5 px-2 py-0.5 rounded border border-white/5 font-semibold">
+                              <span className="text-[10px] text-gray-300 bg-white/5 px-2 py-0.5 rounded border border-white/5 font-semibold">
                                 {client.goal === 'lose_fat' ? 'تنشيف' : client.goal === 'gain_muscle' ? 'تضخيم' : 'لياقة وثبات'}
                               </span>
                             </div>
@@ -717,8 +744,35 @@ export default function CoachDashboardPage() {
                         </button>
                       </div>
 
+                      {/* Dedicated Contact Bar (Email + Phone + WhatsApp) - Full Width */}
+                      <div className="bg-[#06080C]/80 p-3 rounded-2xl border border-white/5 space-y-2 text-xs">
+                        <div className="flex items-center justify-between text-gray-300 gap-2">
+                          <span className="text-gray-400 text-[11px] shrink-0">البريد:</span>
+                          <span className="font-mono text-gray-200 truncate text-[11px] text-left ltr" dir="ltr">{client.email}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-white/5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-gray-400 text-[11px]">الهاتف:</span>
+                            <span className="font-mono text-emerald-400 font-bold text-[11px] text-left ltr" dir="ltr">
+                              {client.phone_number || 'بدون رقم'}
+                            </span>
+                          </div>
+                          {client.phone_number && (
+                            <a
+                              href={`https://wa.me/${client.phone_number.replace(/[^0-9]/g, '')}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-lg text-[10px] font-bold inline-flex items-center gap-1 transition-all shadow-sm"
+                            >
+                              <span>واتساب</span>
+                              <span>💬</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
                       {/* Subscription Tracking Pill */}
-                      <div className="p-3 bg-[#0B0D11] border border-white/5 rounded-2xl space-y-2 text-xs">
+                      <div className="p-3 bg-[#06080C]/70 border border-white/5 rounded-2xl space-y-2 text-xs">
                         <div className="flex items-center justify-between text-gray-300">
                           <span className="text-gray-400">تاريخ الاشتراك:</span>
                           <strong className="text-white font-mono">{client.joined_date || 'اليوم'}</strong>
@@ -741,18 +795,18 @@ export default function CoachDashboardPage() {
 
                       {/* Body Metrics Summary */}
                       <div className="grid grid-cols-2 gap-3 text-xs text-gray-400">
-                        <div className="bg-[#0E1116] p-2.5 rounded-xl border border-white/5">
+                        <div className="bg-[#080B10]/80 p-2.5 rounded-xl border border-white/5">
                           <p className="text-[10px]">الوزن الحالي</p>
                           <p className="font-black text-white text-sm mt-0.5">{client.weight_kg} كجم</p>
                         </div>
-                        <div className="bg-[#0E1116] p-2.5 rounded-xl border border-white/5">
+                        <div className="bg-[#080B10]/80 p-2.5 rounded-xl border border-white/5">
                           <p className="text-[10px]">آخر تمرين مسجل</p>
                           <p className="font-black text-white text-sm mt-0.5">{client.last_log_date || 'لا يوجد تسجيل'}</p>
                         </div>
                       </div>
 
                       {/* Card Action Buttons */}
-                      <div className="pt-2 flex items-center gap-2">
+                      <div className="pt-1 flex items-center gap-2">
                         <button
                           onClick={() => handleOpenMacroEditor(client)}
                           className={`flex-1 py-2.5 px-3 rounded-xl font-black text-xs transition-all ${
@@ -783,7 +837,11 @@ export default function CoachDashboardPage() {
         {/* TAB 2: COACH PROFILE, BIO & RATING */}
         {activeTab === 'profile' && (
           <section className="max-w-4xl mx-auto space-y-8">
-            <div className="bg-[#12151B] border border-white/10 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl">
+            <div className={`backdrop-blur-2xl border rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl ${
+              isFemaleCoach 
+                ? 'bg-[#150F20]/80 border-pink-500/30 shadow-[0_0_40px_rgba(236,72,153,0.15)]' 
+                : 'bg-[#0E131E]/80 border-blue-500/30 shadow-[0_0_40px_rgba(59,130,246,0.15)]'
+            }`}>
               
               <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 border-b border-white/10">
                 <div 
@@ -901,10 +959,10 @@ export default function CoachDashboardPage() {
         {/* TAB 3: LICENSE ACTIVATION & INVITE CODE */}
         {activeTab === 'license' && (
           <section className="max-w-3xl mx-auto space-y-6">
-            <div className={`rounded-3xl p-8 border shadow-2xl space-y-6 ${
+            <div className={`rounded-3xl p-8 border backdrop-blur-2xl shadow-2xl space-y-6 ${
               isCoachActive 
-                ? 'bg-[#101915] border-emerald-500/40 shadow-emerald-500/10' 
-                : 'bg-[#181313] border-amber-500/40 shadow-amber-500/10'
+                ? 'bg-[#0E1A14]/80 border-emerald-500/40 shadow-[0_0_50px_rgba(16,185,129,0.15)]' 
+                : 'bg-[#181111]/80 border-amber-500/40 shadow-[0_0_50px_rgba(245,158,11,0.15)]'
             }`}>
               <div className="flex items-center gap-4">
                 <span className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shrink-0 ${
